@@ -1,50 +1,116 @@
-# Welcome to your Expo app 👋
+# Expo iOS SDK Starter Kit
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo, Convex, Clerk, NativeWind を使用した iOS (およびクロスプラットフォーム) アプリ開発のための、本番環境対応スターターキットです。
 
-## Get started
+## 🚀 機能
 
-1. Install dependencies
+*   **フレームワーク:** Expo SDK 52 (最新)
+*   **言語:** TypeScript
+*   **バックエンド & DB:** Convex (リアルタイムデータベース)
+*   **認証:** Clerk (Convex と統合済み)
+*   **スタイリング:** NativeWind v4 (Tailwind CSS)
+*   **UI コンポーネント:** `components/ui` 内のカスタム再利用可能コンポーネント
+*   **通知:** Expo Notifications (Push Token を Convex と同期)
+*   **国際化 (i18n):** i18next (英語 & 日本語対応済み)
+*   **トースト通知:** sonner-native
 
-   ```bash
-   npm install
-   ```
+## 🤖 AI 自動セットアップ
 
-2. Start the app
+このプロジェクトには、AI エージェント (Claude Code, GitHub Copilot など) に初期設定を任せるためのプロンプトが含まれています。
+`AI_SETUP_PROMPT.md` の内容を AI に渡すことで、環境構築をスムーズに行うことができます。
 
-   ```bash
-   npx expo start
-   ```
+## 🛠 セットアップガイド
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 1. クローン & インストール
 
 ```bash
-npm run reset-project
+git clone <your-repo-url> my-app
+cd my-app
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. 環境変数
 
-## Learn more
+ルートディレクトリに `.env` ファイルを作成してください:
 
-To learn more about developing your project with Expo, look at the following resources:
+```env
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_CONVEX_URL=https://...
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+*   **Clerk:** [Clerk Dashboard](https://dashboard.clerk.com) から Publishable Key を取得してください。
+*   **Convex:** `npx convex dev` を実行して Convex URL を生成してください。
 
-## Join the community
+### 3. Convex & Clerk 統合 (重要!)
 
-Join our community of developers creating universal apps.
+Convex が Clerk の認証を理解できるように、Clerk で JWT テンプレートを設定する必要があります。
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1.  **Clerk Dashboard** > **JWT Templates** に移動します。
+2.  `convex` という名前で新しいテンプレートを作成します。
+3.  **重要:** "Customize session token" セクションで、`"aud": "convex"` を追加してください。
+
+    ```json
+    {
+      "aud": "convex",
+      "email": "{{user.primary_email_address}}",
+      "sub": "{{user.id}}"
+    }
+    ```
+
+4.  テンプレートから **Issuer URL** をコピーします。
+5.  `convex/auth.config.ts` に貼り付けます:
+
+    ```typescript
+    export default {
+      providers: [
+        {
+          domain: "https://your-issuer-url.clerk.accounts.dev",
+          applicationID: "convex",
+        },
+      ],
+    };
+    ```
+
+### 4. アプリの実行
+
+```bash
+# Convex バックエンドを起動 (実行したままにしてください)
+npx convex dev
+
+# Expo アプリを起動 (新しいターミナルで)
+npx expo start
+```
+
+## 📂 プロジェクト構造
+
+```
+/app                # Expo Router ページ
+  /(auth)           # サインイン / サインアップページ
+  index.tsx         # ホームページ
+  _layout.tsx       # ルートレイアウト (プロバイダー設定)
+/components
+  /ui               # 再利用可能な UI コンポーネント (Button, Input, Typography)
+/convex             # バックエンド関数 & スキーマ
+  schema.ts         # データベーススキーマ
+  users.ts          # ユーザーミューテーション
+  auth.config.ts    # 認証設定
+/lib
+  auth.ts           # トークンキャッシュ
+  i18n.ts           # 多言語化設定
+  notifications.ts  # プッシュ通知ロジック
+```
+
+## 🔔 プッシュ通知
+
+アプリはログイン時に自動的に通知許可をリクエストし、Expo Push Token を Convex の `users` テーブルに同期します。
+
+## 🌍 国際化 (Localization)
+
+`lib/i18n.ts` を編集して、言語を追加したりテキストを変更したりできます。
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+const { t } = useTranslation();
+<Text>{t('welcome')}</Text>
+```
