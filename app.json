@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "templete",
-    "slug": "templete",
+    "name": "pernect",
+    "slug": "pernect",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "templete",
+    "scheme": "pernect",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

@@ -1,12 +1,14 @@
-import { useAuth, useSignIn } from '@clerk/clerk-expo';
+import { useAuth, useSession, useSignIn } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const { isSignedIn } = useAuth();
+  const { session } = useSession();
   const router = useRouter();
 
   const [emailAddress, setEmailAddress] = React.useState('');
@@ -14,77 +16,135 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = React.useState(false);
 
   useEffect(() => {
-    if (isSignedIn) {
+    console.log('[SignIn] isSignedIn:', isSignedIn, 'session:', session?.id);
+    if (isSignedIn || session) {
+      console.log('[SignIn] Authenticated! Redirecting to home...');
       router.replace('/');
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, session]);
 
   const onSignInPress = React.useCallback(async () => {
+    console.log('[SignIn] onSignInPress called, isLoaded:', isLoaded);
     if (!isLoaded) {
+      console.log('[SignIn] Not loaded yet, returning');
       return;
     }
 
     try {
-      const completeSignIn = await signIn.create({
+      console.log('[SignIn] Creating sign in...');
+      const result = await signIn.create({
         identifier: emailAddress,
         password,
       });
-      // This is an important step to navigate the user to the home page
-      await setActive({ session: completeSignIn.createdSessionId });
-      router.replace('/');
+      console.log('[SignIn] Result status:', result.status);
+      console.log('[SignIn] Result sessionId:', result.createdSessionId);
+
+      if (result.status === 'complete' && result.createdSessionId) {
+        console.log('[SignIn] Sign in complete! Setting active session...');
+        await setActive({ session: result.createdSessionId });
+        console.log('[SignIn] setActive completed!');
+        router.replace('/');
+      } else {
+        // 追加の認証ステップが必要
+        console.log('[SignIn] Additional steps needed. Status:', result.status);
+        console.log('[SignIn] First factor:', result.firstFactorVerification);
+        console.log('[SignIn] Second factor:', result.secondFactorVerification);
+        alert(`認証に追加のステップが必要です: ${result.status}`);
+      }
     } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
+      console.error('[SignIn] Error:', JSON.stringify(err, null, 2));
+      alert('ログインに失敗しました。メールアドレスとパスワードを確認してください。');
     }
   }, [isLoaded, emailAddress, password]);
 
   return (
-    <View className="flex-1 items-center justify-center bg-white p-4">
-      <Text className="text-2xl font-bold mb-8">Welcome to Expo SDK</Text>
-      <View className="w-full max-w-sm space-y-4">
-        <View>
-          <TextInput
-            autoCapitalize="none"
-            value={emailAddress}
-            placeholder="Email..."
-            onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4"
-          />
-        </View>
+    <View className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        <View className="flex-1 px-8 pt-20 pb-12">
+          {/* ヘッダー */}
+          <View className="mb-12">
+            <Text className="text-4xl font-black text-slate-900 mb-3 tracking-tighter">
+              おかえりなさい
+            </Text>
+            <Text className="text-slate-500 font-medium">
+              アカウントにログインして{'\n'}続きを始めましょう
+            </Text>
+          </View>
 
-        <View className="relative">
-          <TextInput
-            value={password}
-            placeholder="Password..."
-            secureTextEntry={!showPassword}
-            onChangeText={(password) => setPassword(password)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6 pr-12"
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-3"
-          >
-            <Ionicons
-              name={showPassword ? 'eye-off' : 'eye'}
-              size={24}
-              color="gray"
-            />
-          </TouchableOpacity>
-        </View>
+          {/* フォーム */}
+          <View className="space-y-6 mb-12 gap-6">
+            <View>
+              <Text className="text-sm font-bold text-slate-700 mb-2 ml-1">メールアドレス</Text>
+              <TextInput
+                autoCapitalize="none"
+                value={emailAddress}
+                placeholder="name@example.com"
+                placeholderTextColor="#94a3b8"
+                onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
+                className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base"
+              />
+            </View>
 
-        <TouchableOpacity
-          onPress={onSignInPress}
-          className="bg-blue-500 w-full py-3 rounded-lg items-center"
-        >
-          <Text className="text-white font-semibold text-lg">Sign In</Text>
-        </TouchableOpacity>
+            <View>
+              <Text className="text-sm font-bold text-slate-700 mb-2 ml-1">パスワード</Text>
+              <View className="relative">
+                <TextInput
+                  value={password}
+                  placeholder="パスワードを入力"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry={!showPassword}
+                  onChangeText={(password) => setPassword(password)}
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base pr-12"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-4"
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={24}
+                    color="#94a3b8"
+                  />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity className="items-end mt-3">
+                <Text className="text-sm text-purple-600 font-bold">
+                  パスワードをお忘れですか？
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-        <View className="flex-row justify-center mt-4">
-          <Text className="text-gray-600">Don't have an account? </Text>
-          <Link href="/(auth)/sign-up">
-            <Text className="text-blue-500 font-semibold">Sign up</Text>
-          </Link>
+          {/* アクションボタン */}
+          <View className="mt-auto gap-4">
+            <TouchableOpacity 
+              onPress={onSignInPress} 
+              className="w-full shadow-xl shadow-purple-500/20" 
+              activeOpacity={0.9}
+              style={{ borderRadius: 20 }}
+            >
+              <LinearGradient
+                colors={['#1e293b', '#0f172a']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                className="w-full py-5 rounded-2xl items-center justify-center"
+                style={{ borderRadius: 20 }}
+              >
+                <Text className="text-white font-bold text-lg tracking-wide text-center">ログイン</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View className="flex-row items-center justify-center gap-2 py-2">
+              <Text className="text-slate-500 font-medium">アカウントをお持ちでないですか？</Text>
+              <Link href="/(auth)/sign-up" asChild>
+                <TouchableOpacity>
+                  <Text className="text-purple-600 font-bold">新規登録</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }

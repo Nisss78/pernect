@@ -39,8 +39,8 @@ export const store = mutation({
     // If it's a new identity, create a new `User`.
     return await ctx.db.insert("users", {
       tokenIdentifier: identity.tokenIdentifier,
-      name: identity.name!,
-      email: identity.email!,
+      name: identity.name,
+      email: identity.email,
       image: identity.pictureUrl,
       pushToken: args.pushToken,
     });

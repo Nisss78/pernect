@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://select-barnacle-16.clerk.accounts.dev",
+      domain: "https://great-bluegill-77.clerk.accounts.dev",
       applicationID: "convex",
     },
   ],

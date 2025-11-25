@@ -1,6 +1,6 @@
-# Expo iOS SDK Starter Kit
+# Pernect
 
-Expo, Convex, Clerk, NativeWind を使用した iOS (およびクロスプラットフォーム) アプリ開発のための、本番環境対応スターターキットです。
+Expo, Convex, Clerk, NativeWind を使用した自己分析AIアプリです。
 
 ## 🚀 機能
 

@@ -1,46 +1,57 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
-import { Link } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Authenticated, AuthLoading, Unauthenticated, useConvexAuth } from 'convex/react';
+import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { ActionMenu } from '../components/ActionMenu';
+import { HomeScreen } from '../components/HomeScreen';
+import { ProfileScreen } from '../components/ProfileScreen';
+import { SettingsScreen } from '../components/SettingsScreen';
+import { WelcomeScreen } from '../components/WelcomeScreen';
 
-export default function HomeScreen() {
-  const { signOut } = useAuth();
+export default function IndexPage() {
+  const { signOut, isSignedIn } = useAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const [currentTab, setCurrentTab] = useState<'home' | 'profile' | 'settings'>('home');
+  const [isActionMenuVisible, setIsActionMenuVisible] = useState(false);
+
+  useEffect(() => {
+    console.log('[Index] Clerk isSignedIn:', isSignedIn);
+    console.log('[Index] Convex isAuthenticated:', isAuthenticated);
+    console.log('[Index] Convex isLoading:', isLoading);
+  }, [isSignedIn, isAuthenticated, isLoading]);
 
   return (
-    <View className="flex-1 items-center justify-center bg-white dark:bg-black p-4">
-      <Text className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-8">
-        Expo SDK Starter
-      </Text>
-
+    <>
       <AuthLoading>
-        <Text className="text-lg text-gray-500">Loading auth...</Text>
+        <View className="flex-1 items-center justify-center bg-white">
+          <Text className="text-lg text-gray-500">Loading auth...</Text>
+        </View>
       </AuthLoading>
 
       <Authenticated>
-        <Text className="text-xl text-green-600 mb-4">You are logged in!</Text>
-        <TouchableOpacity
-          onPress={() => signOut()}
-          className="bg-red-500 px-6 py-3 rounded-full active:bg-red-600"
-        >
-          <Text className="text-white font-semibold">Sign Out</Text>
-        </TouchableOpacity>
+        {currentTab === 'home' ? (
+          <HomeScreen
+            onSignOut={() => signOut()}
+            onNavigate={setCurrentTab}
+            onActionPress={() => setIsActionMenuVisible(true)}
+          />
+        ) : currentTab === 'profile' ? (
+          <ProfileScreen
+            onNavigate={setCurrentTab}
+            onActionPress={() => setIsActionMenuVisible(true)}
+          />
+        ) : (
+          <SettingsScreen
+            onNavigate={setCurrentTab}
+            onSignOut={() => signOut()}
+          />
+        )}
+        <ActionMenu visible={isActionMenuVisible} onClose={() => setIsActionMenuVisible(false)} />
       </Authenticated>
 
       <Unauthenticated>
-        <Text className="text-xl text-slate-600 mb-4">Please sign in to continue</Text>
-        <View className="flex-row gap-4">
-          <Link href="/(auth)/sign-in" asChild>
-            <TouchableOpacity className="bg-blue-500 px-6 py-3 rounded-full active:bg-blue-600">
-              <Text className="text-white font-semibold">Sign In</Text>
-            </TouchableOpacity>
-          </Link>
-          <Link href="/(auth)/sign-up" asChild>
-            <TouchableOpacity className="bg-slate-500 px-6 py-3 rounded-full active:bg-slate-600">
-              <Text className="text-white font-semibold">Sign Up</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
+        <WelcomeScreen />
       </Unauthenticated>
-    </View>
+    </>
   );
 }

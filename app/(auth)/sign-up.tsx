@@ -1,8 +1,9 @@
 import { useAuth, useSignUp } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, useRouter } from 'expo-router';
 import * as React from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -21,7 +22,6 @@ export default function SignUpScreen() {
     }
   }, [isSignedIn]);
 
-  // start the sign up process.
   const onSignUpPress = async () => {
     if (!isLoaded) {
       return;
@@ -33,17 +33,15 @@ export default function SignUpScreen() {
         password,
       });
 
-      // send the email.
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-      // change the UI to our pending section.
       setPendingVerification(true);
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      alert('登録に失敗しました。入力内容を確認してください。');
     }
   };
 
-  // This verifies the user using email code that is delivered.
   const onPressVerify = async () => {
     if (!isLoaded) {
       return;
@@ -58,73 +56,150 @@ export default function SignUpScreen() {
       router.replace('/');
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
+      alert('認証コードが正しくありません。');
     }
   };
 
   return (
-    <View className="flex-1 items-center justify-center bg-white p-4">
-      {!pendingVerification && (
-        <View className="w-full max-w-sm">
-          <Text className="text-2xl font-bold mb-8 text-center">Welcome to Expo SDK</Text>
-          <View>
-            <TextInput
-              autoCapitalize="none"
-              value={emailAddress}
-              placeholder="Email..."
-              onChangeText={(email) => setEmailAddress(email)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4"
-            />
-          </View>
+    <View className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        <View className="flex-1 px-8 pt-20 pb-12">
+          {!pendingVerification ? (
+            <>
+              {/* ヘッダー */}
+              <View className="mb-12">
+                <Text className="text-4xl font-black text-slate-900 mb-3 tracking-tighter">
+                  アカウント作成
+                </Text>
+                <Text className="text-slate-500 font-medium">
+                  新しいアカウントを作成して{'\n'}pernectを始めましょう
+                </Text>
+              </View>
 
-          <View className="relative">
-            <TextInput
-              value={password}
-              placeholder="Password..."
-              placeholderTextColor="#000"
-              secureTextEntry={!showPassword}
-              onChangeText={(password) => setPassword(password)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6 pr-12"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-3"
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={24}
-                color="gray"
-              />
-            </TouchableOpacity>
-          </View>
+              {/* フォーム */}
+              <View className="space-y-6 mb-12 gap-6">
+                <View>
+                  <Text className="text-sm font-bold text-slate-700 mb-2 ml-1">メールアドレス</Text>
+                  <TextInput
+                    autoCapitalize="none"
+                    value={emailAddress}
+                    placeholder="name@example.com"
+                    placeholderTextColor="#94a3b8"
+                    onChangeText={(email) => setEmailAddress(email)}
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base"
+                  />
+                </View>
 
-          <TouchableOpacity
-            onPress={onSignUpPress}
-            className="bg-blue-500 w-full py-3 rounded-lg items-center"
-          >
-            <Text className="text-white font-semibold text-lg">Sign Up</Text>
-          </TouchableOpacity>
+                <View>
+                  <Text className="text-sm font-bold text-slate-700 mb-2 ml-1">パスワード</Text>
+                  <View className="relative">
+                    <TextInput
+                      value={password}
+                      placeholder="パスワードを入力"
+                      placeholderTextColor="#94a3b8"
+                      secureTextEntry={!showPassword}
+                      onChangeText={(password) => setPassword(password)}
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base pr-12"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-4"
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={24}
+                        color="#94a3b8"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <Text className="text-xs text-slate-400 mt-2 ml-1">
+                    8文字以上の英数字を含めてください
+                  </Text>
+                </View>
+              </View>
+
+              {/* アクションボタン */}
+              <View className="mt-auto gap-4">
+                <TouchableOpacity 
+                  onPress={onSignUpPress} 
+                  className="w-full shadow-xl shadow-purple-500/20" 
+                  activeOpacity={0.9}
+                  style={{ borderRadius: 20 }}
+                >
+                  <LinearGradient
+                    colors={['#1e293b', '#0f172a']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    className="w-full py-5 rounded-2xl items-center justify-center"
+                    style={{ borderRadius: 20 }}
+                  >
+                    <Text className="text-white font-bold text-lg tracking-wide text-center">アカウント作成</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <View className="flex-row items-center justify-center gap-2 py-2">
+                  <Text className="text-slate-500 font-medium">すでにアカウントをお持ちですか？</Text>
+                  <Link href="/(auth)/sign-in" asChild>
+                    <TouchableOpacity>
+                      <Text className="text-purple-600 font-bold">ログイン</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* 認証コード入力画面 */}
+              <View className="mb-12">
+                <Text className="text-4xl font-black text-slate-900 mb-3 tracking-tighter">
+                  メール認証
+                </Text>
+                <Text className="text-slate-500 font-medium">
+                  {emailAddress} に送信された{'\n'}認証コードを入力してください
+                </Text>
+              </View>
+
+              <View className="space-y-6 mb-12 gap-6">
+                <View>
+                  <Text className="text-sm font-bold text-slate-700 mb-2 ml-1">認証コード</Text>
+                  <TextInput
+                    value={code}
+                    placeholder="123456"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="number-pad"
+                    onChangeText={(code) => setCode(code)}
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base text-center tracking-widest font-bold text-2xl"
+                    maxLength={6}
+                  />
+                </View>
+              </View>
+
+              <View className="mt-auto gap-4">
+                <TouchableOpacity 
+                  onPress={onPressVerify} 
+                  className="w-full shadow-xl shadow-purple-500/20" 
+                  activeOpacity={0.9}
+                  style={{ borderRadius: 20 }}
+                >
+                  <LinearGradient
+                    colors={['#1e293b', '#0f172a']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    className="w-full py-5 rounded-2xl items-center justify-center"
+                    style={{ borderRadius: 20 }}
+                  >
+                    <Text className="text-white font-bold text-lg tracking-wide text-center">認証する</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => setPendingVerification(false)} className="py-2">
+                  <Text className="text-slate-500 font-medium text-center">メールアドレスを変更する</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
-      )}
-
-      {pendingVerification && (
-        <View className="w-full max-w-sm">
-          <Text className="text-2xl font-bold mb-8 text-center">Verify Email</Text>
-          <View>
-            <TextInput
-              value={code}
-              placeholder="Code..."
-              onChangeText={(code) => setCode(code)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6"
-            />
-          </View>
-          <TouchableOpacity
-            onPress={onPressVerify}
-            className="bg-blue-500 w-full py-3 rounded-lg items-center"
-          >
-            <Text className="text-white font-semibold text-lg">Verify Email</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      </ScrollView>
     </View>
   );
 }
