@@ -3,7 +3,7 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface SettingsScreenProps {
-  onNavigate: (screen: 'home' | 'profile' | 'settings') => void;
+  onNavigate: (screen: 'home' | 'profile' | 'settings' | 'profile-edit') => void;
   onSignOut: () => void;
 }
 
@@ -30,7 +30,10 @@ export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
           <View>
             <Text className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wider">アカウント</Text>
             <View className="bg-card rounded-2xl overflow-hidden border border-border">
-              <TouchableOpacity className="flex-row items-center justify-between p-4 border-b border-border bg-white">
+              <TouchableOpacity
+                onPress={() => onNavigate('profile-edit')}
+                className="flex-row items-center justify-between p-4 border-b border-border bg-white"
+              >
                 <View className="flex-row items-center gap-3">
                   <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
                     <Ionicons name="person" size={18} color="#2563eb" />

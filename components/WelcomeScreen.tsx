@@ -21,76 +21,79 @@ export function WelcomeScreen() {
         />
       </View>
 
-      <View className="flex-1 items-center justify-center px-8">
-        {/* メインビジュアル */}
-        <View className="items-center justify-center mb-16">
-          <View className="relative">
-            {/* グロー効果 */}
-            <View className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full transform scale-150" />
-            
-            {/* ロゴコンテナ */}
-            <LinearGradient
-              colors={['#ffffff', '#f8fafc']}
-              className="w-40 h-40 rounded-[40px] items-center justify-center shadow-2xl shadow-purple-500/20 border border-white/50"
-            >
+      <View className="flex-1 px-6">
+        {/* 上部: ロゴとテキスト */}
+        <View className="flex-1 items-center justify-center">
+          {/* メインビジュアル */}
+          <View className="items-center justify-center mb-8">
+            <View className="relative">
+              {/* ロゴコンテナ */}
               <LinearGradient
-                colors={['#8b5cf6', '#ec4899']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="w-20 h-20 rounded-2xl items-center justify-center transform rotate-3"
-                style={{ borderRadius: 24 }}
+                colors={['#ffffff', '#f8fafc']}
+                className="w-32 h-32 rounded-[32px] items-center justify-center shadow-2xl shadow-purple-500/20 border border-white/50"
               >
-                <Ionicons name="sparkles" size={40} color="white" />
+                <LinearGradient
+                  colors={['#8b5cf6', '#ec4899']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  className="w-16 h-16 rounded-2xl items-center justify-center"
+                  style={{ borderRadius: 20 }}
+                >
+                  <Ionicons name="sparkles" size={32} color="white" />
+                </LinearGradient>
               </LinearGradient>
-            </LinearGradient>
 
-            {/* 装飾パーツ */}
-            <View className="absolute -right-8 -top-8 bg-white p-3 rounded-2xl shadow-lg shadow-slate-200/50 transform rotate-12">
-              <Ionicons name="heart" size={24} color="#ec4899" />
+              {/* 装飾パーツ */}
+              <View className="absolute -right-6 -top-6 bg-white p-2.5 rounded-xl shadow-lg shadow-slate-200/50">
+                <Ionicons name="heart" size={20} color="#ec4899" />
+              </View>
+              <View className="absolute -left-5 -bottom-3 bg-white p-2.5 rounded-xl shadow-lg shadow-slate-200/50">
+                <Ionicons name="chatbubble" size={20} color="#8b5cf6" />
+              </View>
             </View>
-            <View className="absolute -left-6 -bottom-4 bg-white p-3 rounded-2xl shadow-lg shadow-slate-200/50 transform -rotate-6">
-              <Ionicons name="chatbubble" size={24} color="#8b5cf6" />
-            </View>
+          </View>
+
+          {/* テキスト部分 */}
+          <View className="items-center">
+            <Text className="text-4xl font-black text-slate-900 tracking-tighter text-center mb-3">
+              pernect
+            </Text>
+            <Text className="text-base text-slate-500 text-center font-medium leading-relaxed">
+              AIが導く、あなただけの{'\n'}新しいつながりと可能性。
+            </Text>
           </View>
         </View>
 
-        {/* テキスト部分 */}
-        <View className="items-center mb-16 space-y-4">
-          <Text className="text-5xl font-black text-slate-900 tracking-tighter text-center mb-2">
-            pernect
-          </Text>
-          <Text className="text-lg text-slate-500 text-center font-medium leading-relaxed px-4">
-            AIが導く、あなただけの{'\n'}新しいつながりと可能性。
-          </Text>
-        </View>
-
-        {/* ボタン部分 */}
-        <View className="w-full gap-4 mb-12">
-          <TouchableOpacity 
-            className="w-full shadow-xl shadow-purple-500/30" 
-            activeOpacity={0.9}
+        {/* 下部: ボタン部分 - 画面下部に固定 */}
+        <View className="pb-12 gap-4">
+          <TouchableOpacity
+            className="w-full"
+            activeOpacity={0.85}
             onPress={() => router.push('/(auth)/sign-up')}
-            style={{ borderRadius: 20 }}
+            style={{ borderRadius: 16 }}
           >
             <LinearGradient
-              colors={['#1e293b', '#0f172a']}
+              colors={['#8b5cf6', '#7c3aed']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              className="w-full py-5 items-center justify-center border border-slate-700/50"
-              style={{ borderRadius: 20 }}
+              style={{ borderRadius: 16, minHeight: 60, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Text className="text-white font-bold text-lg tracking-wide text-center">はじめる</Text>
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>アカウントを作成</Text>
             </LinearGradient>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            className="w-full py-5 items-center justify-center bg-white border border-slate-200" 
+
+          <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/(auth)/sign-in')}
-            style={{ borderRadius: 20 }}
+            style={{ borderRadius: 16, minHeight: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', borderWidth: 2, borderColor: '#e2e8f0' }}
           >
-            <Text className="text-slate-900 font-bold text-lg text-center">ログイン</Text>
+            <Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>ログイン</Text>
           </TouchableOpacity>
+
+          {/* 利用規約 */}
+          <Text className="text-xs text-slate-400 text-center mt-2 px-4">
+            続行することで、利用規約とプライバシーポリシーに同意したことになります。
+          </Text>
         </View>
       </View>
     </View>

@@ -1,9 +1,19 @@
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { BottomNavigation } from './BottomNavigation';
 
-export function HomeScreen({ onSignOut, onNavigate, onActionPress }: { onSignOut?: () => void, onNavigate?: (screen: 'home' | 'profile' | 'settings') => void, onActionPress?: () => void }) {
+const { width: screenWidth } = Dimensions.get('window');
+const cardWidth = screenWidth - 48; // 左右のパディング(24px * 2)を引いた幅
+
+interface HomeScreenProps {
+  onSignOut?: () => void;
+  onNavigate?: (screen: 'home' | 'profile' | 'settings' | 'test-list') => void;
+  onActionPress?: () => void;
+}
+
+export function HomeScreen({ onSignOut, onNavigate, onActionPress }: HomeScreenProps) {
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -38,93 +48,100 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress }: { onSignOut
         <View className="px-6 mb-6">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-xl font-bold text-foreground">人気のテスト</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => onNavigate?.('test-list')}>
               <Text className="text-sm text-primary font-semibold">すべて見る</Text>
             </TouchableOpacity>
           </View>
           
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6 pb-4">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            snapToInterval={cardWidth + 12}
+            decelerationRate="fast"
+            contentContainerStyle={{ paddingHorizontal: 24 }}
+            style={{ marginHorizontal: -24 }}
+          >
             {/* MBTI Card */}
             <LinearGradient
-              colors={['#8b5cf6', '#db2777']} // accent to pink-600
+              colors={['#8b5cf6', '#db2777']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              className="w-72 rounded-3xl p-6 mr-4 shadow-lg"
-              style={{ borderRadius: 24 }}
+              style={{ width: cardWidth, borderRadius: 24, padding: 20, marginRight: 12 }}
             >
-              <View className="flex-row items-center justify-between mb-4">
-                <View className="w-14 h-14 rounded-2xl bg-white/20 items-center justify-center">
-                  <FontAwesome name="user" size={32} color="white" />
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center">
+                  <FontAwesome name="user" size={24} color="white" />
                 </View>
                 <View className="px-3 py-1 rounded-full bg-white/20">
                   <Text className="text-xs font-bold text-white">人気</Text>
                 </View>
               </View>
-              <Text className="text-xl font-bold text-white mb-2">MBTI診断</Text>
-              <Text className="text-white/80 text-sm mb-4">
+              <Text className="text-lg font-bold text-white mb-1">MBTI診断</Text>
+              <Text className="text-white/80 text-sm mb-3" numberOfLines={2}>
                 16種類のユニークなプロフィールであなたの性格タイプを発見
               </Text>
               <View className="flex-row items-center gap-2">
-                <Ionicons name="time" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="time" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">15分</Text>
                 <Text className="text-white/90 text-xs mx-1">•</Text>
-                <Ionicons name="star" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="star" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">4.8</Text>
               </View>
             </LinearGradient>
 
             {/* Career Path Card */}
             <LinearGradient
-              colors={['#2563eb', '#7c3aed']} // primary to violet-600
+              colors={['#2563eb', '#7c3aed']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              className="w-72 rounded-3xl p-6 mr-4 shadow-lg"
-              style={{ borderRadius: 24 }}
+              style={{ width: cardWidth, borderRadius: 24, padding: 20, marginRight: 12 }}
             >
-              <View className="flex-row items-center justify-between mb-4">
-                <View className="w-14 h-14 rounded-2xl bg-white/20 items-center justify-center">
-                  <Ionicons name="stats-chart" size={32} color="white" />
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center">
+                  <Ionicons name="stats-chart" size={24} color="white" />
                 </View>
                 <View className="px-3 py-1 rounded-full bg-white/20">
                   <Text className="text-xs font-bold text-white">新着</Text>
                 </View>
               </View>
-              <Text className="text-xl font-bold text-white mb-2">キャリアパスAI</Text>
-              <Text className="text-white/80 text-sm mb-4">
+              <Text className="text-lg font-bold text-white mb-1">キャリアパスAI</Text>
+              <Text className="text-white/80 text-sm mb-3" numberOfLines={2}>
                 あなたの強みに基づいて理想的なキャリアを見つける
               </Text>
               <View className="flex-row items-center gap-2">
-                <Ionicons name="time" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="time" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">10分</Text>
                 <Text className="text-white/90 text-xs mx-1">•</Text>
-                <Ionicons name="star" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="star" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">4.9</Text>
               </View>
             </LinearGradient>
 
             {/* Love Language Card */}
             <LinearGradient
-              colors={['#10b981', '#059669']} // chart-3 to emerald-600
+              colors={['#10b981', '#059669']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              className="w-72 rounded-3xl p-6 mr-4 shadow-lg"
-              style={{ borderRadius: 24 }}
+              style={{ width: cardWidth, borderRadius: 24, padding: 20, marginRight: 12 }}
             >
-              <View className="flex-row items-center justify-between mb-4">
-                <View className="w-14 h-14 rounded-2xl bg-white/20 items-center justify-center">
-                  <Ionicons name="heart" size={32} color="white" />
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center">
+                  <Ionicons name="heart" size={24} color="white" />
                 </View>
                 <View className="px-3 py-1 rounded-full bg-white/20">
                   <Text className="text-xs font-bold text-white">トップ</Text>
                 </View>
               </View>
-              <Text className="text-xl font-bold text-white mb-2">愛の言語</Text>
-              <Text className="text-white/80 text-sm mb-4">あなたが愛を与え、受け取る方法を理解する</Text>
+              <Text className="text-lg font-bold text-white mb-1">愛の言語</Text>
+              <Text className="text-white/80 text-sm mb-3" numberOfLines={2}>
+                あなたが愛を与え、受け取る方法を理解する
+              </Text>
               <View className="flex-row items-center gap-2">
-                <Ionicons name="time" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="time" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">8分</Text>
                 <Text className="text-white/90 text-xs mx-1">•</Text>
-                <Ionicons name="star" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="star" size={14} color="rgba(255,255,255,0.9)" />
                 <Text className="text-white/90 text-xs">4.7</Text>
               </View>
             </LinearGradient>
@@ -137,69 +154,69 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress }: { onSignOut
           </View>
           <View className="flex-row flex-wrap justify-between">
             {/* Learning Style */}
-            <View className="w-[48%] bg-card rounded-3xl p-5 border border-border mb-4">
+            <View className="w-[48%] bg-card rounded-2xl p-4 border border-border mb-3">
               <LinearGradient
-                colors={['#f97316', '#ea580c']} // chart-4 to orange-600
-                className="w-12 h-12 rounded-xl items-center justify-center mb-3"
-                style={{ borderRadius: 12 }}
+                colors={['#f97316', '#ea580c']}
+                className="w-10 h-10 items-center justify-center mb-2"
+                style={{ borderRadius: 8 }}
               >
-                <Ionicons name="school" size={24} color="white" />
+                <Ionicons name="school" size={20} color="white" />
               </LinearGradient>
-              <Text className="text-base font-bold mb-1 text-foreground">学習スタイル</Text>
-              <Text className="text-muted-foreground text-xs mb-3">あなたに最適な学習方法は？</Text>
+              <Text className="text-sm font-bold mb-1 text-foreground" numberOfLines={1}>学習スタイル</Text>
+              <Text className="text-muted-foreground text-xs mb-2" numberOfLines={2}>あなたに最適な学習方法は？</Text>
               <View className="flex-row items-center gap-1">
-                <Ionicons name="time" size={12} color="#64748b" />
+                <Ionicons name="time" size={10} color="#64748b" />
                 <Text className="text-muted-foreground text-xs">12分</Text>
               </View>
             </View>
 
             {/* Color Psychology */}
-            <View className="w-[48%] bg-card rounded-3xl p-5 border border-border mb-4">
+            <View className="w-[48%] bg-card rounded-2xl p-4 border border-border mb-3">
               <LinearGradient
-                colors={['#06b6d4', '#0891b2']} // chart-5 to cyan-600
-                className="w-12 h-12 rounded-xl items-center justify-center mb-3"
-                style={{ borderRadius: 12 }}
+                colors={['#06b6d4', '#0891b2']}
+                className="w-10 h-10 items-center justify-center mb-2"
+                style={{ borderRadius: 8 }}
               >
-                <Ionicons name="color-palette" size={24} color="white" />
+                <Ionicons name="color-palette" size={20} color="white" />
               </LinearGradient>
-              <Text className="text-base font-bold mb-1 text-foreground">色彩心理学</Text>
-              <Text className="text-muted-foreground text-xs mb-3">色があなたについて語ること</Text>
+              <Text className="text-sm font-bold mb-1 text-foreground" numberOfLines={1}>色彩心理学</Text>
+              <Text className="text-muted-foreground text-xs mb-2" numberOfLines={2}>色があなたについて語ること</Text>
               <View className="flex-row items-center gap-1">
-                <Ionicons name="time" size={12} color="#64748b" />
+                <Ionicons name="time" size={10} color="#64748b" />
                 <Text className="text-muted-foreground text-xs">5分</Text>
               </View>
             </View>
 
             {/* Enneagram */}
-            <View className="w-[48%] bg-card rounded-3xl p-5 border border-border mb-4">
+            <View className="w-[48%] bg-card rounded-2xl p-4 border border-border mb-3">
               <LinearGradient
-                colors={['#8b5cf6', '#e11d48']} // accent to rose-600
-                className="w-12 h-12 rounded-xl items-center justify-center mb-3"
-                style={{ borderRadius: 12 }}
+                colors={['#8b5cf6', '#e11d48']}
+                className="w-10 h-10 items-center justify-center mb-2"
+                style={{ borderRadius: 8 }}
               >
-                <Ionicons name="happy" size={24} color="white" />
+                <Ionicons name="happy" size={20} color="white" />
               </LinearGradient>
-              <Text className="text-base font-bold mb-1 text-foreground">エニアグラム</Text>
-              <Text className="text-muted-foreground text-xs mb-3">9つの性格タイプを明らかに</Text>
+              <Text className="text-sm font-bold mb-1 text-foreground" numberOfLines={1}>エニアグラム</Text>
+              <Text className="text-muted-foreground text-xs mb-2" numberOfLines={2}>9つの性格タイプを明らかに</Text>
               <View className="flex-row items-center gap-1">
-                <Ionicons name="time" size={12} color="#64748b" />
+                <Ionicons name="time" size={10} color="#64748b" />
                 <Text className="text-muted-foreground text-xs">20分</Text>
               </View>
             </View>
 
             {/* Astrology */}
-            <View className="w-[48%] bg-card rounded-3xl p-5 border border-border mb-4">
+            <View className="w-[48%] bg-card rounded-2xl p-4 border border-border mb-3">
               <LinearGradient
-                colors={['#2563eb', '#4f46e5']} // primary to indigo-600
-                className="w-12 h-12 rounded-xl items-center justify-center mb-3"
-                style={{ borderRadius: 12 }}
+                colors={['#2563eb', '#4f46e5']}
+                className="w-10 h-10 items-center justify-center mb-2"
+                style={{ borderRadius: 8 }}
               >
-                <Ionicons name="sparkles" size={24} color="white" />
+                <Ionicons name="sparkles" size={20} color="white" />
               </LinearGradient>
-              <Text className="text-base font-bold mb-1 text-foreground">星座深掘り</Text>
-              <Text className="text-muted-foreground text-xs mb-3">あなたの占星術プロフィール</Text>
+              <Text className="text-sm font-bold mb-1 text-foreground" numberOfLines={1}>星座深掘り</Text>
+              <Text className="text-muted-foreground text-xs mb-2" numberOfLines={2}>あなたの占星術プロフィール</Text>
               <View className="flex-row items-center gap-1">
-                <Ionicons name="time" size={12} color="#64748b" />
+                <Ionicons name="time" size={10} color="#64748b" />
                 <Text className="text-muted-foreground text-xs">7分</Text>
               </View>
             </View>
@@ -260,28 +277,11 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress }: { onSignOut
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View className="absolute bottom-0 left-0 right-0 bg-background border-t border-border">
-        <View className="flex-row items-center justify-around pt-3 pb-8 px-6">
-          <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate?.('home')}>
-            <Ionicons name="home" size={24} className="text-primary" color="#2563eb" />
-            <Text className="text-xs font-semibold text-primary">ホーム</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center justify-center -mt-10 shadow-lg shadow-accent/30" onPress={onActionPress}>
-            <LinearGradient
-              colors={['#8b5cf6', '#2563eb']}
-              className="w-16 h-16 rounded-full items-center justify-center"
-              style={{ borderRadius: 32 }}
-            >
-              <Ionicons name="add" size={36} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate?.('profile')}>
-            <FontAwesome name="user" size={24} className="text-muted-foreground" color="#64748b" />
-            <Text className="text-xs text-muted-foreground">プロフィール</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <BottomNavigation
+        currentScreen="home"
+        onNavigate={(screen) => onNavigate?.(screen)}
+        onActionPress={onActionPress}
+      />
     </View>
   );
 }

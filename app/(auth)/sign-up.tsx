@@ -119,21 +119,20 @@ export default function SignUpScreen() {
               </View>
 
               {/* アクションボタン */}
-              <View className="mt-auto gap-4">
-                <TouchableOpacity 
-                  onPress={onSignUpPress} 
-                  className="w-full shadow-xl shadow-purple-500/20" 
+              <View className="gap-4">
+                <TouchableOpacity
+                  onPress={onSignUpPress}
+                  className="w-full"
                   activeOpacity={0.9}
-                  style={{ borderRadius: 20 }}
+                  style={{ borderRadius: 16 }}
                 >
                   <LinearGradient
-                    colors={['#1e293b', '#0f172a']}
+                    colors={['#8b5cf6', '#7c3aed']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    className="w-full py-5 rounded-2xl items-center justify-center"
-                    style={{ borderRadius: 20 }}
+                    style={{ borderRadius: 16, minHeight: 60, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Text className="text-white font-bold text-lg tracking-wide text-center">アカウント作成</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>アカウント作成</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -174,24 +173,23 @@ export default function SignUpScreen() {
                 </View>
               </View>
 
-              <View className="mt-auto gap-4">
-                <TouchableOpacity 
-                  onPress={onPressVerify} 
-                  className="w-full shadow-xl shadow-purple-500/20" 
+              <View className="gap-4">
+                <TouchableOpacity
+                  onPress={onPressVerify}
+                  className="w-full"
                   activeOpacity={0.9}
-                  style={{ borderRadius: 20 }}
+                  style={{ borderRadius: 16 }}
                 >
                   <LinearGradient
-                    colors={['#1e293b', '#0f172a']}
+                    colors={['#8b5cf6', '#7c3aed']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    className="w-full py-5 rounded-2xl items-center justify-center"
-                    style={{ borderRadius: 20 }}
+                    style={{ borderRadius: 16, minHeight: 60, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Text className="text-white font-bold text-lg tracking-wide text-center">認証する</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>認証する</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity onPress={() => setPendingVerification(false)} className="py-2">
                   <Text className="text-slate-500 font-medium text-center">メールアドレスを変更する</Text>
                 </TouchableOpacity>

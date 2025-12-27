@@ -116,21 +116,20 @@ export default function SignInScreen() {
           </View>
 
           {/* アクションボタン */}
-          <View className="mt-auto gap-4">
-            <TouchableOpacity 
-              onPress={onSignInPress} 
-              className="w-full shadow-xl shadow-purple-500/20" 
+          <View className="gap-4">
+            <TouchableOpacity
+              onPress={onSignInPress}
+              className="w-full"
               activeOpacity={0.9}
-              style={{ borderRadius: 20 }}
+              style={{ borderRadius: 16 }}
             >
               <LinearGradient
-                colors={['#1e293b', '#0f172a']}
+                colors={['#8b5cf6', '#7c3aed']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                className="w-full py-5 rounded-2xl items-center justify-center"
-                style={{ borderRadius: 20 }}
+                style={{ borderRadius: 16, minHeight: 60, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Text className="text-white font-bold text-lg tracking-wide text-center">ログイン</Text>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>ログイン</Text>
               </LinearGradient>
             </TouchableOpacity>
 
