@@ -1,6 +1,19 @@
 import { TokenCache } from '@clerk/clerk-expo/dist/cache';
 import * as SecureStore from 'expo-secure-store';
 
+// デバッグ用: 全トークンをクリア
+export const clearAllTokens = async () => {
+  const keys = ['__clerk_client_jwt', '__clerk_session_jwt', '__clerk_session_id'];
+  for (const key of keys) {
+    try {
+      await SecureStore.deleteItemAsync(key);
+      console.log(`Cleared: ${key}`);
+    } catch (e) {
+      console.log(`Failed to clear: ${key}`);
+    }
+  }
+};
+
 export const tokenCache: TokenCache = {
   async getToken(key: string) {
     try {

@@ -32,20 +32,40 @@ export default function SignInScreen() {
 
     try {
       console.log('[SignIn] Creating sign in...');
+
+      // 既存のsign-in attemptをリセット
+      if (signIn.status) {
+        console.log('[SignIn] Existing sign-in status:', signIn.status);
+      }
+
       const result = await signIn.create({
         identifier: emailAddress,
         password,
       });
       console.log('[SignIn] Result status:', result.status);
       console.log('[SignIn] Result sessionId:', result.createdSessionId);
+      console.log('[SignIn] supportedSecondFactors:', result.supportedSecondFactors);
 
       if (result.status === 'complete' && result.createdSessionId) {
         console.log('[SignIn] Sign in complete! Setting active session...');
         await setActive({ session: result.createdSessionId });
         console.log('[SignIn] setActive completed!');
         router.replace('/');
+      } else if (result.status === 'needs_second_factor') {
+        // メール認証が要求されている場合、自動で送信
+        console.log('[SignIn] Email verification required, attempting...');
+        const secondFactor = result.supportedSecondFactors?.find(
+          (f: any) => f.strategy === 'email_code'
+        );
+        if (secondFactor) {
+          await signIn.prepareSecondFactor({
+            strategy: 'email_code',
+          });
+          alert('認証コードをメールに送信しました。メールを確認してください。');
+          // TODO: コード入力UIを表示
+        }
       } else {
-        // 追加の認証ステップが必要
+        // その他の認証ステップが必要
         console.log('[SignIn] Additional steps needed. Status:', result.status);
         console.log('[SignIn] First factor:', result.firstFactorVerification);
         console.log('[SignIn] Second factor:', result.secondFactorVerification);
