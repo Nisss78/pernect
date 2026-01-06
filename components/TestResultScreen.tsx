@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
@@ -24,6 +25,15 @@ export function TestResultScreen({
   onRetakeTest,
 }: TestResultScreenProps) {
   const resultData = useQuery(api.testResults.getById, { resultId });
+
+  // 最後の恋人診断の場合、相性情報を取得
+  const isLastLoverTest = resultData?.test?.slug === "last-lover";
+  const lastLoverDetails = useQuery(
+    api.lastLover.getResultDetails,
+    isLastLoverTest && resultData?.resultType
+      ? { typeCode: resultData.resultType }
+      : "skip"
+  );
 
   if (!resultData) {
     return (
@@ -174,6 +184,307 @@ export function TestResultScreen({
     );
   };
 
+  const renderPercentileScores = () => {
+    if (test.scoringType !== "percentile") return null;
+
+    // BIG5因子のラベルと色定義
+    const big5Factors: Record<string, { label: string; fullLabel: string; color: string }> = {
+      O: { label: "開放性", fullLabel: "開放性 (Openness)", color: "#8b5cf6" },
+      C: { label: "誠実性", fullLabel: "誠実性 (Conscientiousness)", color: "#2563eb" },
+      E: { label: "外向性", fullLabel: "外向性 (Extraversion)", color: "#10b981" },
+      A: { label: "協調性", fullLabel: "協調性 (Agreeableness)", color: "#f97316" },
+      N: { label: "神経症傾向", fullLabel: "神経症傾向 (Neuroticism)", color: "#ef4444" },
+    };
+
+    // aiDataからパーセンタイルを取得（存在する場合）
+    const percentiles = resultData.aiData?.percentiles as Record<string, number> | undefined;
+
+    // スコアをソート（パーセンタイルが高い順）
+    const scoreEntries = Object.entries(scores as Record<string, number>)
+      .filter(([key]) => big5Factors[key])
+      .sort(([keyA], [keyB]) => {
+        const pA = percentiles?.[keyA] ?? 0;
+        const pB = percentiles?.[keyB] ?? 0;
+        return pB - pA;
+      });
+
+    return (
+      <View className="bg-card rounded-2xl p-5 border border-border mb-4">
+        <Text className="text-lg font-bold text-foreground mb-4">5因子パーセンタイル</Text>
+        {scoreEntries.map(([factor, rawScore]) => {
+          const factorInfo = big5Factors[factor];
+          if (!factorInfo) return null;
+
+          // パーセンタイルを取得（aiDataから、または生スコアから推定）
+          const percentile = percentiles?.[factor] ?? Math.round(((rawScore - 10) / 40) * 100);
+
+          return (
+            <View key={factor} className="mb-4">
+              <View className="flex-row justify-between items-center mb-2">
+                <View className="flex-row items-center">
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: factorInfo.color }}
+                  >
+                    <Text className="text-white font-bold text-sm">{factor}</Text>
+                  </View>
+                  <View>
+                    <Text className="text-sm font-semibold text-foreground">
+                      {factorInfo.label}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      スコア: {rawScore}/50
+                    </Text>
+                  </View>
+                </View>
+                <View className="items-end">
+                  <Text
+                    className="text-2xl font-bold"
+                    style={{ color: factorInfo.color }}
+                  >
+                    {percentile}%
+                  </Text>
+                </View>
+              </View>
+              <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <View
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${percentile}%`,
+                    backgroundColor: factorInfo.color,
+                  }}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // 最後の恋人診断: 相性の良いタイプを表示
+  const renderBestCompatibilities = () => {
+    if (!isLastLoverTest || !lastLoverDetails?.compatibilities) return null;
+
+    const { best, good } = lastLoverDetails.compatibilities;
+    const bestMatches = [...best, ...good].slice(0, 3);
+
+    if (bestMatches.length === 0) return null;
+
+    return (
+      <Animated.View
+        entering={FadeInDown.delay(300).duration(500)}
+        className="mb-4"
+      >
+        <LinearGradient
+          colors={["#fdf2f8", "#fce7f3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="rounded-2xl p-5"
+          style={{ borderWidth: 1, borderColor: "#fbcfe8" }}
+        >
+          <View className="flex-row items-center mb-4">
+            <View className="w-10 h-10 rounded-full bg-pink-200 items-center justify-center mr-3">
+              <Text className="text-xl">💕</Text>
+            </View>
+            <View>
+              <Text className="text-lg font-bold text-pink-900">
+                相性の良いタイプ
+              </Text>
+              <Text className="text-xs text-pink-600">
+                あなたと相性が良い恋愛タイプ
+              </Text>
+            </View>
+          </View>
+
+          {bestMatches.map((compat, index) => (
+            <Animated.View
+              key={compat.compatibleType}
+              entering={FadeInDown.delay(400 + index * 100).duration(400)}
+              className="bg-white/70 rounded-xl p-4 mb-3"
+              style={{
+                borderWidth: 1,
+                borderColor: compat.compatibilityLevel === "best" ? "#f9a8d4" : "#fce7f3"
+              }}
+            >
+              <View className="flex-row items-center mb-2">
+                <Text className="text-2xl mr-2">
+                  {compat.compatibleTypeInfo?.emoji || "💝"}
+                </Text>
+                <View className="flex-1">
+                  <View className="flex-row items-center">
+                    <Text className="text-base font-bold text-pink-900">
+                      {compat.compatibleTypeInfo?.characterName || compat.compatibleType}
+                    </Text>
+                    {compat.compatibilityLevel === "best" && (
+                      <View className="bg-pink-500 rounded-full px-2 py-0.5 ml-2">
+                        <Text className="text-xs text-white font-semibold">最高</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="text-xs text-pink-600">{compat.compatibleType}</Text>
+                </View>
+              </View>
+              <Text className="text-sm text-pink-800 leading-relaxed">
+                {compat.reason}
+              </Text>
+              {compat.advice && (
+                <View className="mt-2 pt-2 border-t border-pink-100">
+                  <Text className="text-xs text-pink-600 italic">
+                    💡 {compat.advice}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          ))}
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
+
+  // 最後の恋人診断: 注意が必要なタイプを表示
+  const renderChallengingCompatibilities = () => {
+    if (!isLastLoverTest || !lastLoverDetails?.compatibilities) return null;
+
+    const { challenging } = lastLoverDetails.compatibilities;
+
+    if (challenging.length === 0) return null;
+
+    return (
+      <Animated.View
+        entering={FadeInDown.delay(600).duration(500)}
+        className="mb-4"
+      >
+        <LinearGradient
+          colors={["#faf5ff", "#f3e8ff"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="rounded-2xl p-5"
+          style={{ borderWidth: 1, borderColor: "#e9d5ff" }}
+        >
+          <View className="flex-row items-center mb-4">
+            <View className="w-10 h-10 rounded-full bg-purple-200 items-center justify-center mr-3">
+              <Text className="text-xl">🤔</Text>
+            </View>
+            <View>
+              <Text className="text-lg font-bold text-purple-900">
+                ちょっと注意なタイプ
+              </Text>
+              <Text className="text-xs text-purple-600">
+                お互いの理解が大切になるかも
+              </Text>
+            </View>
+          </View>
+
+          {challenging.slice(0, 2).map((compat: typeof challenging[number], index: number) => (
+            <Animated.View
+              key={compat.compatibleType}
+              entering={FadeInDown.delay(700 + index * 100).duration(400)}
+              className="bg-white/70 rounded-xl p-4 mb-3"
+              style={{ borderWidth: 1, borderColor: "#e9d5ff" }}
+            >
+              <View className="flex-row items-center mb-2">
+                <Text className="text-2xl mr-2">
+                  {compat.compatibleTypeInfo?.emoji || "💜"}
+                </Text>
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-purple-900">
+                    {compat.compatibleTypeInfo?.characterName || compat.compatibleType}
+                  </Text>
+                  <Text className="text-xs text-purple-600">{compat.compatibleType}</Text>
+                </View>
+              </View>
+              <Text className="text-sm text-purple-800 leading-relaxed">
+                {compat.reason}
+              </Text>
+              {compat.advice && (
+                <View className="mt-2 pt-2 border-t border-purple-100">
+                  <Text className="text-xs text-purple-600 italic">
+                    💡 {compat.advice}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          ))}
+
+          <View className="bg-white/50 rounded-lg p-3 mt-2">
+            <Text className="text-xs text-purple-700 text-center leading-relaxed">
+              ⚠️ 相性は参考情報です。お互いの努力と理解で、
+              どんなタイプとも素敵な関係を築けます！
+            </Text>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
+
+  // 最後の恋人診断: タイプ詳細情報を表示
+  const renderLastLoverTypeDetails = () => {
+    if (!isLastLoverTest || !lastLoverDetails?.typeInfo) return null;
+
+    const { typeInfo } = lastLoverDetails;
+
+    return (
+      <Animated.View
+        entering={FadeInUp.delay(200).duration(500)}
+        className="mb-4"
+      >
+        <LinearGradient
+          colors={["#fdf4ff", "#fce7f3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="rounded-2xl p-5"
+          style={{ borderWidth: 1, borderColor: "#f5d0fe" }}
+        >
+          <View className="items-center mb-4">
+            <Text className="text-5xl mb-2">{typeInfo.emoji}</Text>
+            <Text className="text-xl font-bold text-pink-900">
+              {typeInfo.characterName}
+            </Text>
+            <Text className="text-sm text-pink-600">{typeInfo.typeCode}</Text>
+          </View>
+
+          <Text className="text-sm text-pink-800 leading-relaxed mb-4">
+            {typeInfo.summary}
+          </Text>
+
+          {/* 恋愛スタイル */}
+          <View className="bg-white/60 rounded-xl p-4 mb-3">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-lg mr-2">💗</Text>
+              <Text className="text-sm font-bold text-pink-900">恋愛スタイル</Text>
+            </View>
+            <Text className="text-sm text-pink-800 leading-relaxed">
+              {typeInfo.loveStyle}
+            </Text>
+          </View>
+
+          {/* 理想のデート */}
+          <View className="bg-white/60 rounded-xl p-4 mb-3">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-lg mr-2">🌟</Text>
+              <Text className="text-sm font-bold text-pink-900">理想のデート</Text>
+            </View>
+            <Text className="text-sm text-pink-800 leading-relaxed">
+              {typeInfo.idealDate}
+            </Text>
+          </View>
+
+          {/* コミュニケーションスタイル */}
+          <View className="bg-white/60 rounded-xl p-4">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-lg mr-2">💬</Text>
+              <Text className="text-sm font-bold text-pink-900">コミュニケーション</Text>
+            </View>
+            <Text className="text-sm text-pink-800 leading-relaxed">
+              {typeInfo.communicationStyle}
+            </Text>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -201,8 +512,11 @@ export function TestResultScreen({
         </LinearGradient>
 
         <View className="px-6 py-6">
+          {/* Last Lover Type Details */}
+          {renderLastLoverTypeDetails()}
+
           {/* Description */}
-          {analysis && (
+          {analysis && !isLastLoverTest && (
             <View className="bg-card rounded-2xl p-5 border border-border mb-4">
               <Text className="text-lg font-bold text-foreground mb-3">あなたのタイプについて</Text>
               <Text className="text-foreground leading-relaxed">
@@ -214,6 +528,7 @@ export function TestResultScreen({
           {/* Scores */}
           {renderDimensionScores()}
           {renderSingleScores()}
+          {renderPercentileScores()}
 
           {/* Strengths */}
           {analysis?.strengths && analysis.strengths.length > 0 && (
@@ -278,6 +593,10 @@ export function TestResultScreen({
               ))}
             </View>
           )}
+
+          {/* Last Lover Compatibility Sections */}
+          {renderBestCompatibilities()}
+          {renderChallengingCompatibilities()}
 
           {/* Actions */}
           <View className="flex-row gap-3 mt-4 mb-10">

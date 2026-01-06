@@ -1,27 +1,18 @@
-import { useAuth, useSession, useSignIn } from '@clerk/clerk-expo';
+import { useSignIn } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import { Link } from 'expo-router';
+import React from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { isSignedIn } = useAuth();
-  const { session } = useSession();
-  const router = useRouter();
 
   const [emailAddress, setEmailAddress] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
 
-  useEffect(() => {
-    console.log('[SignIn] isSignedIn:', isSignedIn, 'session:', session?.id);
-    if (isSignedIn || session) {
-      console.log('[SignIn] Authenticated! Redirecting to home...');
-      router.replace('/');
-    }
-  }, [isSignedIn, session]);
+  // 認証済みのリダイレクトは(auth)/_layout.tsxで処理
 
   const onSignInPress = React.useCallback(async () => {
     console.log('[SignIn] onSignInPress called, isLoaded:', isLoaded);
@@ -49,8 +40,8 @@ export default function SignInScreen() {
       if (result.status === 'complete' && result.createdSessionId) {
         console.log('[SignIn] Sign in complete! Setting active session...');
         await setActive({ session: result.createdSessionId });
-        console.log('[SignIn] setActive completed!');
-        router.replace('/');
+        console.log('[SignIn] setActive completed! useEffect will handle redirect...');
+        // useEffectでisSignedInの変更を検知してリダイレクトする
       } else if (result.status === 'needs_second_factor') {
         // メール認証が要求されている場合、自動で送信
         console.log('[SignIn] Email verification required, attempting...');

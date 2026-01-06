@@ -1,14 +1,12 @@
-import { useAuth, useSignUp } from '@clerk/clerk-expo';
+import { useSignUp } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import * as React from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
-  const { isSignedIn } = useAuth();
-  const router = useRouter();
 
   const [emailAddress, setEmailAddress] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -16,11 +14,7 @@ export default function SignUpScreen() {
   const [code, setCode] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
 
-  React.useEffect(() => {
-    if (isSignedIn) {
-      router.replace('/');
-    }
-  }, [isSignedIn]);
+  // 認証済みのリダイレクトは(auth)/_layout.tsxで処理
 
   const onSignUpPress = async () => {
     if (!isLoaded) {
@@ -52,8 +46,10 @@ export default function SignUpScreen() {
         code,
       });
 
+      console.log('[SignUp] Setting active session...');
       await setActive({ session: completeSignUp.createdSessionId });
-      router.replace('/');
+      console.log('[SignUp] setActive completed! useEffect will handle redirect...');
+      // useEffectでisSignedInの変更を検知してリダイレクトする
     } catch (err: any) {
       console.error(JSON.stringify(err, null, 2));
       alert('認証コードが正しくありません。');

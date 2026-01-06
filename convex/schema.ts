@@ -27,16 +27,60 @@ export default defineSchema({
     slug: v.string(), // "mbti-simple"
     title: v.string(), // "MBTI診断（簡易版）"
     description: v.string(), // "5問で分かるあなたの性格タイプ"
-    category: v.string(), // "personality" | "career" | "relationship"
+    category: v.string(), // "personality" | "strength" | "relationship" | "lifestyle"
     questionCount: v.number(), // 5
     estimatedMinutes: v.number(), // 3
-    scoringType: v.string(), // "dimension" | "single"
+    scoringType: v.string(), // "dimension" | "single" | "scale" | "percentile"
     resultField: v.optional(v.string()), // "mbti" - usersテーブルの保存先
     icon: v.string(), // "brain" | "briefcase" | "heart"
     gradientStart: v.string(), // "#8b5cf6"
     gradientEnd: v.string(), // "#2563eb"
     isActive: v.boolean(), // true
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+
+    // 科学的根拠：出典情報
+    citation: v.optional(
+      v.object({
+        authors: v.array(v.string()), // ["Carl Jung", "Isabel Myers", "Katharine Briggs"]
+        title: v.string(), // "Gifts Differing"
+        year: v.number(), // 1980
+        doi: v.optional(v.string()), // "10.xxxx/xxxxx"
+        url: v.optional(v.string()), // "https://..."
+      })
+    ),
+
+    // スコアリング設定
+    scoringConfig: v.optional(
+      v.object({
+        // dimension: 対立次元ペア定義
+        dimensions: v.optional(
+          v.array(
+            v.object({
+              positive: v.string(), // "E"
+              negative: v.string(), // "I"
+            })
+          )
+        ),
+        // scale: 閾値定義
+        thresholds: v.optional(
+          v.array(
+            v.object({
+              min: v.number(),
+              max: v.number(),
+              label: v.string(), // "高感受性", "中程度", "低感受性"
+            })
+          )
+        ),
+        // percentile: 基準値
+        percentileBase: v.optional(v.number()), // 100
+        // カスタム計算関数名
+        customCalculator: v.optional(v.string()),
+      })
+    ),
+
+    // 結果タイプ定義（分析テンプレート）
+    resultTypes: v.optional(v.any()), // Record<string, ResultTypeDefinition>
   })
     .index("by_slug", ["slug"])
     .index("by_category", ["category"])
@@ -47,16 +91,47 @@ export default defineSchema({
     testId: v.id("tests"),
     order: v.number(), // 1, 2, 3...
     questionText: v.string(), // "あなたはパーティーで..."
-    options: v.array(
+
+    // 質問タイプ（新規）
+    questionType: v.optional(v.string()), // "multiple" | "likert" | "forced_choice" | "slider" (デフォルト: "multiple")
+
+    // 質問タイプ別設定
+    typeConfig: v.optional(
       v.object({
-        value: v.string(), // "A" | "B" | "E" | "I"
-        label: v.string(), // "多くの人と話す"
-        // スコア加算情報
-        scoreKey: v.optional(v.string()), // "EI" (dimension) or "type1" (single)
-        scoreValue: v.optional(v.union(v.string(), v.number())),
-        // dimension: "E" or "I"
-        // single: 1 (加算値)
+        // likert: スケール範囲
+        likertMin: v.optional(v.number()), // 1
+        likertMax: v.optional(v.number()), // 5 or 7
+        likertLabels: v.optional(
+          v.object({
+            min: v.string(), // "全くそう思わない"
+            max: v.string(), // "非常にそう思う"
+          })
+        ),
+        // slider: 範囲
+        sliderMin: v.optional(v.number()), // 0
+        sliderMax: v.optional(v.number()), // 100
       })
+    ),
+
+    // スコアキー（likert/slider用）
+    scoreKey: v.optional(v.string()), // "openness", "conscientiousness", etc.
+
+    // 逆転項目フラグ（BIG5など逆転スコアリングが必要な質問用）
+    reverseScored: v.optional(v.boolean()), // true = 逆転項目（スコア反転が必要）
+
+    // 選択肢（multiple, forced_choice用）
+    options: v.optional(
+      v.array(
+        v.object({
+          value: v.string(), // "A" | "B" | "E" | "I"
+          label: v.string(), // "多くの人と話す"
+          // スコア加算情報
+          scoreKey: v.optional(v.string()), // "EI" (dimension) or "type1" (single)
+          scoreValue: v.optional(v.union(v.string(), v.number())),
+          // dimension: "E" or "I"
+          // single: 1 (加算値)
+        })
+      )
     ),
   })
     .index("by_test", ["testId"])
@@ -92,8 +167,67 @@ export default defineSchema({
       })
     ),
     completedAt: v.number(),
+
+    // AI分析用構造化データ（新規）
+    aiData: v.optional(
+      v.object({
+        testSlug: v.string(), // "mbti"
+        resultType: v.string(), // "ENFP"
+        scores: v.any(), // { E: 7, I: 3, N: 8, S: 2 }
+        dimensions: v.optional(v.array(v.string())), // ["E", "N", "F", "P"]
+        percentiles: v.optional(v.any()), // { E_I: 70, N_S: 80 }
+        completedAt: v.string(), // ISO 8601: "2026-01-05T12:00:00Z"
+      })
+    ),
+
+    // シェア設定（新規）
+    shareSettings: v.optional(
+      v.object({
+        isPublic: v.boolean(), // 公開/非公開
+        shareId: v.optional(v.string()), // 短縮シェアID
+      })
+    ),
   })
     .index("by_user", ["userId"])
     .index("by_user_test", ["userId", "testId"])
     .index("by_completed", ["completedAt"]),
+
+  // シェアリンクテーブル（新規）
+  shareLinks: defineTable({
+    resultId: v.id("testResults"),
+    userId: v.id("users"),
+    shareId: v.string(), // 短縮ID (8文字)
+    expiresAt: v.optional(v.number()), // 有効期限
+    accessCount: v.number(), // アクセス数
+    maxAccessCount: v.optional(v.number()), // 最大アクセス数
+    createdAt: v.number(),
+  })
+    .index("by_shareId", ["shareId"])
+    .index("by_result", ["resultId"])
+    .index("by_user", ["userId"]),
+
+  // 最後の恋人診断: 16タイプのキャラクター定義
+  lastLoverTypes: defineTable({
+    typeCode: v.string(), // "ESFJ", "INFP", etc.
+    characterName: v.string(), // "献身的な世話焼きさん"
+    emoji: v.string(), // "💝"
+    summary: v.string(), // 短い要約
+    description: v.string(), // 詳細説明
+    loveStyle: v.string(), // 恋愛スタイル説明
+    strengths: v.array(v.string()), // 恋愛における強み
+    weaknesses: v.array(v.string()), // 注意点
+    idealDate: v.string(), // 理想のデート
+    communicationStyle: v.string(), // コミュニケーションスタイル
+  }).index("by_type_code", ["typeCode"]),
+
+  // 最後の恋人診断: タイプ間の相性情報
+  lastLoverCompatibility: defineTable({
+    typeCode: v.string(), // 基準タイプ "ESFJ"
+    compatibleType: v.string(), // 相手タイプ "INFP"
+    compatibilityLevel: v.string(), // "best" | "good" | "neutral" | "challenging"
+    reason: v.string(), // 相性の理由
+    advice: v.optional(v.string()), // アドバイス
+  })
+    .index("by_type", ["typeCode"])
+    .index("by_pair", ["typeCode", "compatibleType"]),
 });

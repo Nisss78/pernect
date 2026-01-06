@@ -9,6 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { toast } from "sonner-native";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
@@ -61,6 +69,26 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
+  // 恋愛診断かどうかを判定
+  const isLoveTest = test.category === "love" || test.slug === "last-lover";
+
+  // アニメーション用
+  const questionScale = useSharedValue(1);
+  const questionOpacity = useSharedValue(1);
+
+  // 質問変更時のアニメーション
+  useEffect(() => {
+    questionScale.value = 0.95;
+    questionOpacity.value = 0;
+    questionScale.value = withSpring(1, { damping: 15 });
+    questionOpacity.value = withSpring(1);
+  }, [currentQuestionIndex]);
+
+  const questionAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: questionScale.value }],
+    opacity: questionOpacity.value,
+  }));
+
   const handleSelectOption = async (value: string) => {
     const newAnswer = {
       questionOrder: currentQuestion.order,
@@ -74,15 +102,26 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
     updatedAnswers.push(newAnswer);
     setAnswers(updatedAnswers);
 
-    // 進捗を保存
-    try {
-      await saveProgress({
-        testId: test._id,
-        answers: updatedAnswers,
-      });
-    } catch (error) {
-      console.error("Failed to save progress:", error);
-    }
+    // 進捗を保存（リトライ付き）
+    const saveWithRetry = async (retries = 2) => {
+      try {
+        await saveProgress({
+          testId: test._id,
+          answers: updatedAnswers,
+        });
+      } catch (error) {
+        if (retries > 0) {
+          // リトライ
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          return saveWithRetry(retries - 1);
+        }
+        console.error("Failed to save progress:", error);
+        toast.error("保存に失敗しました", {
+          description: "インターネット接続を確認してください",
+        });
+      }
+    };
+    saveWithRetry();
 
     // 次の質問へ自動遷移（少し遅延を入れて選択を見せる）
     setTimeout(() => {
@@ -106,17 +145,28 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
 
   const handleComplete = async () => {
     if (answers.length < totalQuestions) {
-      Alert.alert("未回答の質問があります", "すべての質問に回答してください。");
+      toast.warning("未回答の質問があります", {
+        description: "すべての質問に回答してください",
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
       const result = await calculateResult({ testId: test._id });
+      toast.success("診断完了！", {
+        description: "結果を表示します",
+      });
       onComplete(result.resultId);
     } catch (error) {
       console.error("Failed to calculate result:", error);
-      Alert.alert("エラー", "結果の算出に失敗しました。もう一度お試しください。");
+      toast.error("結果の算出に失敗しました", {
+        description: "もう一度お試しください",
+        action: {
+          label: "再試行",
+          onClick: () => handleComplete(),
+        },
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -147,9 +197,19 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
           text: "やり直す",
           style: "destructive",
           onPress: async () => {
-            await clearProgress({ testId: test._id });
-            setAnswers([]);
-            setCurrentQuestionIndex(0);
+            try {
+              await clearProgress({ testId: test._id });
+              setAnswers([]);
+              setCurrentQuestionIndex(0);
+              toast.success("リセットしました", {
+                description: "最初から回答してください",
+              });
+            } catch (error) {
+              console.error("Failed to reset:", error);
+              toast.error("リセットに失敗しました", {
+                description: "もう一度お試しください",
+              });
+            }
           },
         },
       ]
@@ -163,33 +223,36 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
   const allAnswered = answers.length === totalQuestions;
 
   return (
-    <View className="flex-1 bg-background">
+    <View className={`flex-1 ${isLoveTest ? "bg-pink-50" : "bg-background"}`}>
       {/* Header */}
       <View className="px-6 pt-14 pb-4">
         <View className="flex-row items-center justify-between">
           <TouchableOpacity onPress={handleBack} className="flex-row items-center">
-            <Ionicons name="close" size={24} color="#0f172a" />
+            <Ionicons name="close" size={24} color={isLoveTest ? "#9d174d" : "#0f172a"} />
           </TouchableOpacity>
-          <Text className="text-lg font-semibold text-foreground">
-            {test.title}
-          </Text>
+          <View className="flex-row items-center">
+            {isLoveTest && <Text className="mr-2">💕</Text>}
+            <Text className={`text-lg font-semibold ${isLoveTest ? "text-pink-900" : "text-foreground"}`}>
+              {test.title}
+            </Text>
+          </View>
           <TouchableOpacity onPress={handleReset}>
-            <Ionicons name="refresh" size={24} color="#64748b" />
+            <Ionicons name="refresh" size={24} color={isLoveTest ? "#9d174d" : "#64748b"} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Progress Bar */}
+      {/* Progress Bar - Enhanced for love tests */}
       <View className="px-6 mb-6">
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-sm text-muted-foreground">
-            質問 {currentQuestionIndex + 1} / {totalQuestions}
+          <Text className={`text-sm ${isLoveTest ? "text-pink-700" : "text-muted-foreground"}`}>
+            {isLoveTest ? "💗 " : ""}質問 {currentQuestionIndex + 1} / {totalQuestions}
           </Text>
-          <Text className="text-sm text-muted-foreground">
+          <Text className={`text-sm ${isLoveTest ? "text-pink-700" : "text-muted-foreground"}`}>
             {Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%
           </Text>
         </View>
-        <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <View className={`h-3 rounded-full overflow-hidden ${isLoveTest ? "bg-pink-100" : "bg-gray-200"}`}>
           <LinearGradient
             colors={[test.gradientStart, test.gradientEnd]}
             start={{ x: 0, y: 0 }}
@@ -204,54 +267,129 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
 
       {/* Question */}
       <View className="flex-1 px-6">
-        <View className="bg-card rounded-3xl p-6 border border-border mb-6">
-          <Text className="text-xl font-bold text-foreground leading-relaxed">
-            {currentQuestion.questionText}
-          </Text>
-        </View>
+        <Animated.View style={questionAnimatedStyle}>
+          {isLoveTest ? (
+            <LinearGradient
+              colors={["#fdf2f8", "#fce7f3"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="rounded-3xl p-6 mb-6"
+              style={{ borderWidth: 1, borderColor: "#fbcfe8" }}
+            >
+              <Text className="text-xl font-bold text-pink-900 leading-relaxed">
+                {currentQuestion.questionText}
+              </Text>
+            </LinearGradient>
+          ) : (
+            <View className="bg-card rounded-3xl p-6 border border-border mb-6">
+              <Text className="text-xl font-bold text-foreground leading-relaxed">
+                {currentQuestion.questionText}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
 
-        {/* Options */}
-        <View className="gap-3">
-          {currentQuestion.options.map((option) => {
-            const isSelected = currentAnswer?.selectedValue === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => handleSelectOption(option.value)}
-                activeOpacity={0.7}
-              >
-                <View
-                  className={`rounded-2xl p-5 border-2 ${
-                    isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-card"
-                  }`}
-                >
-                  <View className="flex-row items-center">
+        {/* Options - Likert Scale or Multiple Choice */}
+        {currentQuestion.questionType === "likert" ? (
+          // Likert Scale UI (5段階スケール)
+          <View className="gap-4">
+            {/* Scale Labels */}
+            <View className="flex-row justify-between px-2 mb-2">
+              <Text className="text-xs text-muted-foreground flex-1 text-left">
+                {currentQuestion.typeConfig?.likertLabels?.min || "全く当てはまらない"}
+              </Text>
+              <Text className="text-xs text-muted-foreground flex-1 text-right">
+                {currentQuestion.typeConfig?.likertLabels?.max || "非常に当てはまる"}
+              </Text>
+            </View>
+
+            {/* Scale Buttons */}
+            <View className="flex-row justify-between px-2">
+              {Array.from(
+                { length: (currentQuestion.typeConfig?.likertMax || 5) - (currentQuestion.typeConfig?.likertMin || 1) + 1 },
+                (_, i) => (currentQuestion.typeConfig?.likertMin || 1) + i
+              ).map((value) => {
+                const isSelected = currentAnswer?.selectedValue === String(value);
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => handleSelectOption(String(value))}
+                    activeOpacity={0.7}
+                    className="items-center"
+                  >
                     <View
-                      className={`w-6 h-6 rounded-full border-2 mr-4 items-center justify-center ${
-                        isSelected ? "border-primary bg-primary" : "border-gray-300"
-                      }`}
-                    >
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={16} color="white" />
-                      )}
-                    </View>
-                    <Text
-                      className={`flex-1 text-base ${
+                      className={`w-14 h-14 rounded-full border-2 items-center justify-center ${
                         isSelected
-                          ? "text-primary font-semibold"
-                          : "text-foreground"
+                          ? "border-primary bg-primary"
+                          : "border-border bg-card"
                       }`}
                     >
-                      {option.label}
-                    </Text>
+                      <Text
+                        className={`text-lg font-bold ${
+                          isSelected ? "text-white" : "text-foreground"
+                        }`}
+                      >
+                        {value}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Selected Value Indicator */}
+            {currentAnswer && (
+              <View className="items-center mt-4">
+                <Text className="text-sm text-muted-foreground">
+                  選択: {currentAnswer.selectedValue}
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          // Multiple Choice UI (従来の選択肢形式)
+          <View className="gap-3">
+            {currentQuestion.options?.map((option) => {
+              const isSelected = currentAnswer?.selectedValue === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => handleSelectOption(option.value)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    className={`rounded-2xl p-5 border-2 ${
+                      isSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-card"
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <View
+                        className={`w-6 h-6 rounded-full border-2 mr-4 items-center justify-center ${
+                          isSelected ? "border-primary bg-primary" : "border-gray-300"
+                        }`}
+                      >
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                      <Text
+                        className={`flex-1 text-base ${
+                          isSelected
+                            ? "text-primary font-semibold"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {option.label}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Navigation */}

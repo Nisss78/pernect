@@ -1,5 +1,10 @@
-import { TokenCache } from '@clerk/clerk-expo/dist/cache';
 import * as SecureStore from 'expo-secure-store';
+
+// TokenCache型定義（@clerk/clerk-expo v2.x対応）
+interface TokenCache {
+  getToken: (key: string) => Promise<string | null>;
+  saveToken: (key: string, value: string) => Promise<void>;
+}
 
 // デバッグ用: 全トークンをクリア
 export const clearAllTokens = async () => {

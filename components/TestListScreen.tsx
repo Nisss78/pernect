@@ -91,22 +91,22 @@ export function TestListScreen({
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="px-6 pt-14 pb-4">
+        <View className="px-5 pt-14 pb-6">
           <TouchableOpacity
             onPress={() => onNavigate?.("home")}
-            className="flex-row items-center mb-4"
+            className="flex-row items-center mb-5"
           >
             <Ionicons name="arrow-back" size={24} color="#0f172a" />
             <Text className="ml-2 text-foreground">戻る</Text>
           </TouchableOpacity>
           <Text className="text-2xl font-bold text-foreground">診断テスト</Text>
-          <Text className="text-muted-foreground text-sm mt-1">
+          <Text className="text-muted-foreground text-sm mt-2">
             あなたをより深く理解するための診断
           </Text>
         </View>
 
         {/* Test List */}
-        <View className="px-6 pb-32">
+        <View className="px-5 pb-32">
           {tests.length === 0 ? (
             <View className="items-center justify-center py-12">
               <Ionicons name="document-text-outline" size={48} color="#94a3b8" />
@@ -115,58 +115,54 @@ export function TestListScreen({
               </Text>
             </View>
           ) : (
-            <View className="gap-4">
+            <View className="gap-5">
               {tests.map((test) => {
                 const status = getTestStatus(test._id);
                 return (
                   <TouchableOpacity
                     key={test._id}
                     onPress={() => onStartTest?.(test.slug)}
-                    className="bg-card rounded-2xl overflow-hidden border border-border"
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <LinearGradient
                       colors={[test.gradientStart, test.gradientEnd]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
-                      className="p-5"
+                      style={{ borderRadius: 24, padding: 20 }}
                     >
-                      <View className="flex-row items-start justify-between">
-                        <View className="w-14 h-14 rounded-xl bg-white/20 items-center justify-center">
+                      <View className="flex-row items-center justify-between mb-3">
+                        <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center">
                           {renderIcon(test.icon)}
                         </View>
                         {getStatusBadge(status)}
                       </View>
-                      <Text className="text-xl font-bold text-white mt-4">
+                      <Text className="text-lg font-bold text-white mb-1">
                         {test.title}
                       </Text>
                       <Text
-                        className="text-white/80 text-sm mt-2"
+                        className="text-white/80 text-sm mb-3"
                         numberOfLines={2}
                       >
                         {test.description}
                       </Text>
-                      <View className="flex-row items-center mt-4 gap-4">
-                        <View className="flex-row items-center gap-1">
-                          <Ionicons
-                            name="help-circle-outline"
-                            size={16}
-                            color="rgba(255,255,255,0.9)"
-                          />
-                          <Text className="text-white/90 text-xs">
-                            {test.questionCount}問
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Ionicons
-                            name="time-outline"
-                            size={16}
-                            color="rgba(255,255,255,0.9)"
-                          />
-                          <Text className="text-white/90 text-xs">
-                            約{test.estimatedMinutes}分
-                          </Text>
-                        </View>
+                      <View className="flex-row items-center gap-2">
+                        <Ionicons
+                          name="help-circle-outline"
+                          size={14}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <Text className="text-white/90 text-xs">
+                          {test.questionCount}問
+                        </Text>
+                        <Text className="text-white/90 text-xs mx-1">•</Text>
+                        <Ionicons
+                          name="time-outline"
+                          size={14}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <Text className="text-white/90 text-xs">
+                          約{test.estimatedMinutes}分
+                        </Text>
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>

@@ -1,0 +1,39 @@
+{
+  "feature_name": "big5-ipip50",
+  "title": "BIG5診断（IPIP-50）の完全実装",
+  "description": "科学的に最も検証された性格モデルであるBIG5診断を、IPIP-NEO-50項目版として完全実装する",
+  "created_at": "2026-01-05T10:45:00Z",
+  "updated_at": "2026-01-05T17:00:00Z",
+  "language": "ja",
+  "phase": "implementation-complete",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "implementation_summary": {
+    "completed_at": "2026-01-05T17:00:00Z",
+    "files_modified": [
+      "convex/schema.ts - reverseScored field added",
+      "convex/scoring.ts - reverse item processing in calculatePercentileScores",
+      "convex/seedBig5Questions.ts - 50 IPIP items with factor order",
+      "components/TestScreen.tsx - Likert scale UI",
+      "components/TestResultScreen.tsx - percentile scores display"
+    ],
+    "test_results": {
+      "all_5_response": "N=38, O=34, C=34, A=30, E=30 → High-N (70% percentile)",
+      "all_1_response": "E=30, A=30, O=26, C=26, N=22 → High-E (50% percentile)",
+      "all_3_response": "All factors 30 → 50% percentile"
+    }
+  }
+}

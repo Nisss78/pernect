@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { Authenticated, AuthLoading, Unauthenticated, useConvexAuth } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { ActionMenu } from '../components/ActionMenu';
 import { AIChatScreen } from '../components/AIChatScreen';
 import { FriendsMatchScreen } from '../components/FriendsMatchScreen';
@@ -18,8 +18,8 @@ import { Id } from '../convex/_generated/dataModel';
 type Screen = 'home' | 'profile' | 'settings' | 'ai-chat' | 'friends-match' | 'profile-edit' | 'test-list' | 'test' | 'test-result';
 
 export default function IndexPage() {
-  const { signOut, isSignedIn } = useAuth();
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { signOut, isSignedIn, isLoaded: isClerkLoaded } = useAuth();
+  const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [isActionMenuVisible, setIsActionMenuVisible] = useState(false);
 
@@ -28,10 +28,29 @@ export default function IndexPage() {
   const [currentResultId, setCurrentResultId] = useState<Id<"testResults"> | null>(null);
 
   useEffect(() => {
-    console.log('[Index] Clerk isSignedIn:', isSignedIn);
-    console.log('[Index] Convex isAuthenticated:', isAuthenticated);
-    console.log('[Index] Convex isLoading:', isLoading);
-  }, [isSignedIn, isAuthenticated, isLoading]);
+    console.log('[Index] Clerk isSignedIn:', isSignedIn, 'isClerkLoaded:', isClerkLoaded);
+    console.log('[Index] Convex isAuthenticated:', isAuthenticated, 'isConvexLoading:', isConvexLoading);
+  }, [isSignedIn, isClerkLoaded, isAuthenticated, isConvexLoading]);
+
+  // Clerkがまだロード中の場合
+  if (!isClerkLoaded) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#8b5cf6" />
+        <Text className="text-lg text-gray-500 mt-4">読み込み中...</Text>
+      </View>
+    );
+  }
+
+  // Clerkでログイン済みだがConvexがまだ同期中の場合
+  if (isSignedIn && !isAuthenticated && isConvexLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#8b5cf6" />
+        <Text className="text-lg text-gray-500 mt-4">認証を同期中...</Text>
+      </View>
+    );
+  }
 
   const handleNavigateFromMenu = (screen: 'ai-chat' | 'friends-match') => {
     setCurrentScreen(screen);
@@ -137,26 +156,23 @@ export default function IndexPage() {
     }
   };
 
+  // Clerkの認証状態を基準に判定（Convexより優先）
+  // isSignedIn: Clerkでログイン済み
+  // isAuthenticated: Convexで認証済み
+  const isUserAuthenticated = isSignedIn || isAuthenticated;
+
+  if (!isUserAuthenticated) {
+    return <WelcomeScreen />;
+  }
+
   return (
     <>
-      <AuthLoading>
-        <View className="flex-1 items-center justify-center bg-white">
-          <Text className="text-lg text-gray-500">Loading auth...</Text>
-        </View>
-      </AuthLoading>
-
-      <Authenticated>
-        {renderScreen()}
-        <ActionMenu
-          visible={isActionMenuVisible}
-          onClose={() => setIsActionMenuVisible(false)}
-          onNavigate={handleNavigateFromMenu}
-        />
-      </Authenticated>
-
-      <Unauthenticated>
-        <WelcomeScreen />
-      </Unauthenticated>
+      {renderScreen()}
+      <ActionMenu
+        visible={isActionMenuVisible}
+        onClose={() => setIsActionMenuVisible(false)}
+        onNavigate={handleNavigateFromMenu}
+      />
     </>
   );
 }

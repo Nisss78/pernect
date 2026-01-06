@@ -8,7 +8,15 @@
  * @module
  */
 
+import type * as lastLover from "../lastLover.js";
+import type * as scoring from "../scoring.js";
+import type * as seedBig5Questions from "../seedBig5Questions.js";
+import type * as seedEvidenceBasedTests from "../seedEvidenceBasedTests.js";
+import type * as seedLastLoverCompatibility from "../seedLastLoverCompatibility.js";
+import type * as seedLastLoverTest from "../seedLastLoverTest.js";
+import type * as seedLastLoverTypes from "../seedLastLoverTypes.js";
 import type * as seedTests from "../seedTests.js";
+import type * as shareLinks from "../shareLinks.js";
 import type * as testAnswers from "../testAnswers.js";
 import type * as testResults from "../testResults.js";
 import type * as tests from "../tests.js";
@@ -21,7 +29,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  lastLover: typeof lastLover;
+  scoring: typeof scoring;
+  seedBig5Questions: typeof seedBig5Questions;
+  seedEvidenceBasedTests: typeof seedEvidenceBasedTests;
+  seedLastLoverCompatibility: typeof seedLastLoverCompatibility;
+  seedLastLoverTest: typeof seedLastLoverTest;
+  seedLastLoverTypes: typeof seedLastLoverTypes;
   seedTests: typeof seedTests;
+  shareLinks: typeof shareLinks;
   testAnswers: typeof testAnswers;
   testResults: typeof testResults;
   tests: typeof tests;

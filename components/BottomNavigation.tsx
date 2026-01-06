@@ -31,29 +31,36 @@ export function BottomNavigation({ currentScreen, onNavigate, onActionPress }: B
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* ナビゲーションアイテム */}
-      <View className="flex-row justify-between pt-3 pb-8 px-12">
-        <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('home')}>
-          <Ionicons
-            name="home"
-            size={24}
-            color={currentScreen === 'home' ? '#2563eb' : '#64748b'}
-          />
-          <Text className={`text-xs ${currentScreen === 'home' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-            ホーム
-          </Text>
-        </TouchableOpacity>
+      {/* ナビゲーションアイテム（左右をハーフに分け、中央のFAB領域を確保。各アイテムは「プラスボタンと端」の中間に配置） */}
+      <View className="flex-row items-center justify-between pt-3 pb-8">
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('home')}>
+            <Ionicons
+              name="home"
+              size={24}
+              color={currentScreen === 'home' ? '#2563eb' : '#64748b'}
+            />
+            <Text className={`text-xs ${currentScreen === 'home' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+              ホーム
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('profile')}>
-          <FontAwesome
-            name="user"
-            size={24}
-            color={currentScreen === 'profile' ? '#2563eb' : '#64748b'}
-          />
-          <Text className={`text-xs ${currentScreen === 'profile' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-            プロフィール
-          </Text>
-        </TouchableOpacity>
+        {/* 中央のフローティングボタン(56px) + 余白のためのスペース */}
+        <View style={{ width: 96 }} />
+
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('profile')}>
+            <FontAwesome
+              name="user"
+              size={24}
+              color={currentScreen === 'profile' ? '#2563eb' : '#64748b'}
+            />
+            <Text className={`text-xs ${currentScreen === 'profile' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+              プロフィール
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

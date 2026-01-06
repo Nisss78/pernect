@@ -1,6 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import {
+  calculateScores,
+  generateAiData,
+  type ScoringType,
+  type QuestionData,
+  type AnswerData,
+  type ScoringConfig,
+} from "./scoring";
 
 // ユーザーをトークンから取得するヘルパー
 async function getUserByToken(ctx: any, tokenIdentifier: string) {
@@ -399,22 +407,58 @@ export const calculate = mutation({
       throw new Error("回答が見つかりません");
     }
 
-    // スコア計算
-    let resultType: string;
-    let scores: Record<string, number>;
+    // スコアリング設定を取得
+    const scoringConfig: ScoringConfig | undefined = test.scoringConfig as ScoringConfig | undefined;
 
-    if (test.scoringType === "dimension") {
-      const result = calculateDimensionScores(questions, progress.answers);
-      resultType = result.resultType;
-      scores = result.scores;
-    } else {
-      const result = calculateSingleScores(questions, progress.answers);
-      resultType = result.resultType;
-      scores = result.scores;
-    }
+    // 新しい統一スコアリングエンジンでスコア計算
+    const scoringType = (test.scoringType || "single") as ScoringType;
+    const result = calculateScores(
+      scoringType,
+      questions as QuestionData[],
+      progress.answers as AnswerData[],
+      scoringConfig
+    );
+
+    const { resultType, scores, percentiles, dimensions } = result;
 
     // 分析データを取得
-    const analysis = MBTI_ANALYSIS[resultType] || null;
+    // 1. まずtestのresultTypesから取得を試みる
+    // 2. 次に既存のMBTI_ANALYSISからフォールバック
+    let analysis: {
+      summary: string;
+      description: string;
+      strengths: string[];
+      weaknesses: string[];
+      recommendations: string[];
+    } | null = null;
+
+    if (test.resultTypes && typeof test.resultTypes === "object") {
+      const resultTypesMap = test.resultTypes as Record<string, {
+        summary?: string;
+        description?: string;
+        strengths?: string[];
+        weaknesses?: string[];
+        recommendations?: string[];
+      }>;
+      const typeData = resultTypesMap[resultType];
+      if (typeData) {
+        analysis = {
+          summary: typeData.summary || resultType,
+          description: typeData.description || "",
+          strengths: typeData.strengths || [],
+          weaknesses: typeData.weaknesses || [],
+          recommendations: typeData.recommendations || [],
+        };
+      }
+    }
+
+    // フォールバック: 既存のMBTI_ANALYSIS
+    if (!analysis && MBTI_ANALYSIS[resultType]) {
+      analysis = MBTI_ANALYSIS[resultType];
+    }
+
+    // AI分析用データを生成
+    const aiData = generateAiData(test.slug, result);
 
     // 結果を保存
     const resultId = await ctx.db.insert("testResults", {
@@ -424,6 +468,7 @@ export const calculate = mutation({
       scores,
       analysis: analysis || undefined,
       completedAt: Date.now(),
+      aiData,
     });
 
     // ユーザーのプロフィールに反映
@@ -438,7 +483,7 @@ export const calculate = mutation({
     // 進行中データを削除
     await ctx.db.delete(progress._id);
 
-    return { resultId, resultType, scores, analysis };
+    return { resultId, resultType, scores, percentiles, dimensions, analysis };
   },
 });
 
@@ -503,7 +548,7 @@ export const getLatest = query({
   },
 });
 
-// 結果詳細取得
+// 結果詳細取得（出典情報を含む）
 export const getById = query({
   args: {
     resultId: v.id("testResults"),
@@ -520,5 +565,329 @@ export const getById = query({
 
     const test = await ctx.db.get(result.testId);
     return { ...result, test };
+  },
+});
+
+// 診断別結果履歴取得（比較用）
+export const getByTestAndUser = query({
+  args: {
+    testSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { results: [], scoreDiffs: null };
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) return { results: [], scoreDiffs: null };
+
+    // テストを取得
+    const test = await ctx.db
+      .query("tests")
+      .withIndex("by_slug", (q) => q.eq("slug", args.testSlug))
+      .unique();
+
+    if (!test) return { results: [], scoreDiffs: null };
+
+    // 結果を取得
+    const results = await ctx.db
+      .query("testResults")
+      .withIndex("by_user_test", (q) =>
+        q.eq("userId", user._id).eq("testId", test._id)
+      )
+      .collect();
+
+    if (results.length === 0) return { results: [], scoreDiffs: null };
+
+    // 時系列ソート（古い順）
+    const sortedResults = results.sort((a, b) => a.completedAt - b.completedAt);
+
+    // スコア差分計算（最新と最古の比較）
+    let scoreDiffs: Record<string, number> | null = null;
+    if (sortedResults.length >= 2) {
+      const oldest = sortedResults[0];
+      const newest = sortedResults[sortedResults.length - 1];
+
+      scoreDiffs = {};
+      const oldScores = oldest.scores as Record<string, number>;
+      const newScores = newest.scores as Record<string, number>;
+
+      for (const key of Object.keys(newScores)) {
+        const oldValue = oldScores[key] || 0;
+        const newValue = newScores[key] || 0;
+        scoreDiffs[key] = newValue - oldValue;
+      }
+    }
+
+    // テスト情報を含めて返す
+    const resultsWithTest = sortedResults.map((result) => ({
+      ...result,
+      test,
+    }));
+
+    return {
+      results: resultsWithTest,
+      scoreDiffs,
+      test,
+    };
+  },
+});
+
+// AI分析用統合プロファイル取得
+export const getIntegratedProfile = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) return null;
+
+    // 全結果を取得
+    const results = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    if (results.length === 0) return null;
+
+    // 各テストの最新結果のみを抽出
+    const latestByTest: Map<string, typeof results[0]> = new Map();
+    for (const result of results) {
+      const existing = latestByTest.get(result.testId.toString());
+      if (!existing || result.completedAt > existing.completedAt) {
+        latestByTest.set(result.testId.toString(), result);
+      }
+    }
+
+    // AI分析用データを収集
+    const aiProfiles: Array<{
+      testSlug: string;
+      resultType: string;
+      scores: Record<string, number>;
+      dimensions?: string[];
+      percentiles?: Record<string, number>;
+      completedAt: string;
+    }> = [];
+
+    for (const result of latestByTest.values()) {
+      if (result.aiData) {
+        aiProfiles.push(result.aiData as {
+          testSlug: string;
+          resultType: string;
+          scores: Record<string, number>;
+          dimensions?: string[];
+          percentiles?: Record<string, number>;
+          completedAt: string;
+        });
+      } else {
+        // aiDataがない古いデータの場合はresultTypeとscoresから生成
+        const test = await ctx.db.get(result.testId);
+        if (test) {
+          aiProfiles.push({
+            testSlug: test.slug,
+            resultType: result.resultType,
+            scores: result.scores as Record<string, number>,
+            completedAt: new Date(result.completedAt).toISOString(),
+          });
+        }
+      }
+    }
+
+    // 統合サマリーを生成
+    const summary = {
+      userId: user._id,
+      totalTests: aiProfiles.length,
+      profiles: aiProfiles,
+      generatedAt: new Date().toISOString(),
+    };
+
+    return summary;
+  },
+});
+
+// シェア設定の更新
+export const updateShareSettings = mutation({
+  args: {
+    resultId: v.id("testResults"),
+    isPublic: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("認証が必要です");
+    }
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    const result = await ctx.db.get(args.resultId);
+    if (!result || result.userId !== user._id) {
+      throw new Error("この結果を更新する権限がありません");
+    }
+
+    // shareSettingsを更新
+    const currentSettings = (result.shareSettings || {}) as {
+      isPublic?: boolean;
+      shareId?: string;
+    };
+    await ctx.db.patch(args.resultId, {
+      shareSettings: {
+        ...currentSettings,
+        isPublic: args.isPublic,
+      },
+    });
+
+    // 非公開にする場合、関連するシェアリンクを無効化
+    if (!args.isPublic && currentSettings.shareId) {
+      const shareIdToDelete = currentSettings.shareId;
+      const shareLink = await ctx.db
+        .query("shareLinks")
+        .withIndex("by_shareId", (q) => q.eq("shareId", shareIdToDelete))
+        .first();
+
+      if (shareLink) {
+        await ctx.db.delete(shareLink._id);
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+// 結果を削除（単一）
+export const deleteResult = mutation({
+  args: {
+    resultId: v.id("testResults"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("認証が必要です");
+    }
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    const result = await ctx.db.get(args.resultId);
+    if (!result || result.userId !== user._id) {
+      throw new Error("この結果を削除する権限がありません");
+    }
+
+    // 関連するシェアリンクも削除
+    const shareLinks = await ctx.db
+      .query("shareLinks")
+      .withIndex("by_result", (q) => q.eq("resultId", args.resultId))
+      .collect();
+
+    for (const link of shareLinks) {
+      await ctx.db.delete(link._id);
+    }
+
+    // 結果を削除
+    await ctx.db.delete(args.resultId);
+
+    return { success: true };
+  },
+});
+
+// 全結果を削除
+export const deleteAllResults = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("認証が必要です");
+    }
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    // ユーザーの全結果を取得
+    const results = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // 関連するシェアリンクを削除
+    const shareLinks = await ctx.db
+      .query("shareLinks")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    for (const link of shareLinks) {
+      await ctx.db.delete(link._id);
+    }
+
+    // 全結果を削除
+    for (const result of results) {
+      await ctx.db.delete(result._id);
+    }
+
+    // ユーザーのプロフィールからテスト結果フィールドをクリア
+    await ctx.db.patch(user._id, {
+      mbti: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, deletedCount: results.length };
+  },
+});
+
+// データエクスポート（JSON形式）
+export const exportData = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) return null;
+
+    // 全結果を取得
+    const results = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // テスト情報を含めてエクスポート用データを構築
+    const exportData = await Promise.all(
+      results.map(async (result) => {
+        const test = await ctx.db.get(result.testId);
+        return {
+          testTitle: test?.title || "不明なテスト",
+          testSlug: test?.slug || "unknown",
+          testCategory: test?.category || "unknown",
+          resultType: result.resultType,
+          scores: result.scores,
+          analysis: result.analysis,
+          completedAt: new Date(result.completedAt).toISOString(),
+          // 出典情報
+          citation: test?.citation || null,
+        };
+      })
+    );
+
+    // ソート（新しい順）
+    exportData.sort(
+      (a, b) =>
+        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
+
+    return {
+      user: {
+        name: user.name,
+        email: user.email,
+        mbti: user.mbti,
+      },
+      results: exportData,
+      exportedAt: new Date().toISOString(),
+      totalResults: exportData.length,
+    };
   },
 });
