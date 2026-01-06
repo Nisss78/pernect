@@ -43,6 +43,15 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
   >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // アニメーション用（Hooksは条件分岐の前に配置する必要がある）
+  const questionScale = useSharedValue(1);
+  const questionOpacity = useSharedValue(1);
+
+  const questionAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: questionScale.value }],
+    opacity: questionOpacity.value,
+  }));
+
   // 既存の進捗があれば復元
   useEffect(() => {
     if (existingProgress && existingProgress.answers.length > 0) {
@@ -55,6 +64,14 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
       setCurrentQuestionIndex(Math.min(idx + 1, (testData?.questions.length ?? 1) - 1));
     }
   }, [existingProgress, testData?.questions]);
+
+  // 質問変更時のアニメーション
+  useEffect(() => {
+    questionScale.value = 0.95;
+    questionOpacity.value = 0;
+    questionScale.value = withSpring(1, { damping: 15 });
+    questionOpacity.value = withSpring(1);
+  }, [currentQuestionIndex]);
 
   if (!testData) {
     return (
@@ -71,23 +88,6 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
 
   // 恋愛診断かどうかを判定
   const isLoveTest = test.category === "love" || test.slug === "last-lover";
-
-  // アニメーション用
-  const questionScale = useSharedValue(1);
-  const questionOpacity = useSharedValue(1);
-
-  // 質問変更時のアニメーション
-  useEffect(() => {
-    questionScale.value = 0.95;
-    questionOpacity.value = 0;
-    questionScale.value = withSpring(1, { damping: 15 });
-    questionOpacity.value = withSpring(1);
-  }, [currentQuestionIndex]);
-
-  const questionAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: questionScale.value }],
-    opacity: questionOpacity.value,
-  }));
 
   const handleSelectOption = async (value: string) => {
     const newAnswer = {
