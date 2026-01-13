@@ -221,6 +221,25 @@ export const getRecommended = query({
   },
 });
 
+// 最近追加されたテスト取得（作成日時降順）
+export const getRecent = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 5;
+    const tests = await ctx.db
+      .query("tests")
+      .withIndex("by_active")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    return tests
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, limit);
+  },
+});
+
 // テスト一覧（受験済みステータス付き）
 export const listWithStatus = query({
   args: {

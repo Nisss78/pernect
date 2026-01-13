@@ -1,0 +1,17 @@
+{
+  "name": "enneagram",
+  "description": "エニアグラム診断（9つの性格タイプ）",
+  "status": "in-progress",
+  "phases": {
+    "requirements": { "status": "approved", "approvedAt": "2026-01-06" },
+    "design": { "status": "approved", "approvedAt": "2026-01-06" },
+    "tasks": { "status": "in-progress", "startedAt": "2026-01-06" }
+  },
+  "metadata": {
+    "category": "personality",
+    "questionCount": 45,
+    "scoringType": "single",
+    "estimatedMinutes": 12,
+    "typeCount": 9
+  }
+}

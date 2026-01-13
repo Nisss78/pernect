@@ -104,7 +104,7 @@ export default function CitationInfo({
 
       {/* タイトル */}
       <Text className="text-sm text-muted-foreground italic mb-3">
-        "{citation.title}"
+        &quot;{citation.title}&quot;
       </Text>
 
       {/* リンクボタン */}

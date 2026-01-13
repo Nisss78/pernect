@@ -1,0 +1,27 @@
+{
+  "name": "strengths-finder",
+  "description": "強み診断（CliftonStrengths風34テーマ）",
+  "status": "in-progress",
+  "phases": {
+    "requirements": {
+      "status": "approved",
+      "approvedAt": "2026-01-06"
+    },
+    "design": {
+      "status": "approved",
+      "approvedAt": "2026-01-06"
+    },
+    "tasks": {
+      "status": "in-progress",
+      "startedAt": "2026-01-06"
+    }
+  },
+  "metadata": {
+    "category": "strength",
+    "questionCount": 68,
+    "scoringType": "single",
+    "estimatedMinutes": 20,
+    "themeCount": 34,
+    "domains": ["executing", "influencing", "relationship", "thinking"]
+  }
+}

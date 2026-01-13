@@ -620,3 +620,331 @@ export const resetLastLoverTest = mutation({
     };
   },
 });
+
+// 追加の16問を投入して32問に拡張（既存テストを安全にアップグレード）
+export const extendLastLoverQuestions = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // テストを取得
+    const test = await ctx.db
+      .query("tests")
+      .withIndex("by_slug", (q) => q.eq("slug", "last-lover"))
+      .unique();
+
+    if (!test) {
+      return { success: false, message: "最後の恋人診断が見つかりません" };
+    }
+
+    // 既存の質問数を確認
+    const existing = await ctx.db
+      .query("testQuestions")
+      .withIndex("by_test", (q) => q.eq("testId", test._id))
+      .collect();
+
+    if (existing.length >= 32) {
+      return { success: true, message: "すでに32問に拡張済み", questionCount: existing.length };
+    }
+
+    // 追加する質問（17〜32）: 各次元4問ずつ
+    const EXTRA_QUESTIONS: Array<{
+      order: number;
+      questionText: string;
+      options: { value: string; label: string; scoreValue: string }[];
+    }> = [
+      // E/I 追加
+      { order: 17, questionText: "📣 恋人へのサプライズ", options: [
+        { value: "E", label: "友達も巻き込んで盛大に企画する", scoreValue: "E" },
+        { value: "I", label: "二人だけで静かに喜びを分かち合う", scoreValue: "I" },
+      ]},
+      { order: 18, questionText: "🕺 デートの雰囲気", options: [
+        { value: "E", label: "にぎやかな場所やイベントが好き", scoreValue: "E" },
+        { value: "I", label: "静かなカフェやお家デートが好き", scoreValue: "I" },
+      ]},
+      { order: 19, questionText: "☎️ 連絡スタイル", options: [
+        { value: "E", label: "電話やビデオ通話が多い", scoreValue: "E" },
+        { value: "I", label: "テキスト中心で必要なときに連絡", scoreValue: "I" },
+      ]},
+      { order: 20, questionText: "👥 交友関係の共有", options: [
+        { value: "E", label: "お互いの友人を紹介して輪を広げたい", scoreValue: "E" },
+        { value: "I", label: "プライベートは分けておきたい", scoreValue: "I" },
+      ]},
+
+      // S/N 追加
+      { order: 21, questionText: "🧭 記念日の過ごし方", options: [
+        { value: "S", label: "定番のプランで確実に楽しみたい", scoreValue: "S" },
+        { value: "N", label: "新しい体験で思い出をアップデートしたい", scoreValue: "N" },
+      ]},
+      { order: 22, questionText: "📝 約束の捉え方", options: [
+        { value: "S", label: "言ったことは具体的に実行するもの", scoreValue: "S" },
+        { value: "N", label: "状況に応じて意味が変わることもある", scoreValue: "N" },
+      ]},
+      { order: 23, questionText: "🎯 関係のゴール", options: [
+        { value: "S", label: "段階的に目標を決めて前進したい", scoreValue: "S" },
+        { value: "N", label: "二人だけの物語が自然に形になるのが理想", scoreValue: "N" },
+      ]},
+      { order: 24, questionText: "🗺️ 将来の選択", options: [
+        { value: "S", label: "現実的な条件を優先して決める", scoreValue: "S" },
+        { value: "N", label: "ビジョンや可能性を優先して決める", scoreValue: "N" },
+      ]},
+
+      // T/F 追加
+      { order: 25, questionText: "🧠 意見の違い", options: [
+        { value: "T", label: "論点を整理して最適解を探す", scoreValue: "T" },
+        { value: "F", label: "気持ちを確認して納得感を大切にする", scoreValue: "F" },
+      ]},
+      { order: 26, questionText: "💬 フィードバック", options: [
+        { value: "T", label: "率直さを重視。事実ベースで話す", scoreValue: "T" },
+        { value: "F", label: "言い方やタイミングに配慮する", scoreValue: "F" },
+      ]},
+      { order: 27, questionText: "❤️ 愛情の感じ方", options: [
+        { value: "T", label: "問題が解決されると愛を感じる", scoreValue: "T" },
+        { value: "F", label: "共感や寄り添いで愛を感じる", scoreValue: "F" },
+      ]},
+      { order: 28, questionText: "🫶 サポートの形", options: [
+        { value: "T", label: "アドバイスや情報提供で支える", scoreValue: "T" },
+        { value: "F", label: "そばにいて励ますことで支える", scoreValue: "F" },
+      ]},
+
+      // J/P 追加
+      { order: 29, questionText: "🧭 旅行の計画", options: [
+        { value: "J", label: "事前に日程や行程を固めておく", scoreValue: "J" },
+        { value: "P", label: "現地で気分に合わせて決める", scoreValue: "P" },
+      ]},
+      { order: 30, questionText: "🕰️ 時間の使い方", options: [
+        { value: "J", label: "予定通りに動けると安心する", scoreValue: "J" },
+        { value: "P", label: "柔軟に動けると楽しく感じる", scoreValue: "P" },
+      ]},
+      { order: 31, questionText: "🔁 日常のルーティン", options: [
+        { value: "J", label: "安定した習慣を二人で作りたい", scoreValue: "J" },
+        { value: "P", label: "毎日違う楽しさを見つけたい", scoreValue: "P" },
+      ]},
+      { order: 32, questionText: "🎯 重要な決断", options: [
+        { value: "J", label: "準備を整えて計画的に実行する", scoreValue: "J" },
+        { value: "P", label: "流れやタイミングを大切にして決める", scoreValue: "P" },
+      ]},
+    ];
+
+    // 既存orderのセット
+    const existingOrders = new Set(existing.map((q) => q.order));
+    let inserted = 0;
+    for (const q of EXTRA_QUESTIONS) {
+      if (existingOrders.has(q.order)) continue;
+      await ctx.db.insert("testQuestions", {
+        testId: test._id,
+        order: q.order,
+        questionText: q.questionText,
+        questionType: "multiple",
+        options: q.options,
+      });
+      inserted++;
+    }
+
+    // テスト定義のquestionCount/estimatedMinutesを更新
+    const newCount = existing.length + inserted;
+    await ctx.db.patch(test._id, {
+      questionCount: Math.max(32, newCount),
+      estimatedMinutes: 8,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      success: true,
+      message: `質問を追加しました（+${inserted}）`,
+      questionCount: Math.max(32, newCount),
+    };
+  },
+});
+
+// さらに32問追加して計64問へ（論理性を高めた強制選択形式）
+export const extendLastLoverQuestions64 = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const test = await ctx.db
+      .query("tests")
+      .withIndex("by_slug", (q) => q.eq("slug", "last-lover"))
+      .unique();
+
+    if (!test) {
+      return { success: false, message: "最後の恋人診断が見つかりません" };
+    }
+
+    // 現在の質問数を確認
+    const existing = await ctx.db
+      .query("testQuestions")
+      .withIndex("by_test", (q) => q.eq("testId", test._id))
+      .collect();
+
+    if (existing.length >= 64) {
+      return { success: true, message: "すでに64問に拡張済み", questionCount: existing.length };
+    }
+
+    const EXTRA_33_64: Array<{
+      order: number;
+      questionText: string;
+      options: { value: string; label: string; scoreValue: string }[];
+    }> = [
+      // E/I 追加（33-40）
+      { order: 33, questionText: "👫 週末の過ごし方", options: [
+        { value: "E", label: "誰かを誘って賑やかに過ごしたい", scoreValue: "E" },
+        { value: "I", label: "二人だけで落ち着いて過ごしたい", scoreValue: "I" },
+      ]},
+      { order: 34, questionText: "🗣️ 気持ちの共有", options: [
+        { value: "E", label: "その場で率直に言葉にして伝える", scoreValue: "E" },
+        { value: "I", label: "少し時間をおいて整理してから伝える", scoreValue: "I" },
+      ]},
+      { order: 35, questionText: "🏟️ 記念日のプラン", options: [
+        { value: "E", label: "イベントやスポットで思い出を作る", scoreValue: "E" },
+        { value: "I", label: "自宅や静かな場所で丁寧に過ごす", scoreValue: "I" },
+      ]},
+      { order: 36, questionText: "🤳 SNSとの向き合い方", options: [
+        { value: "E", label: "二人の写真をよく共有したい", scoreValue: "E" },
+        { value: "I", label: "思い出は二人の間に留めたい", scoreValue: "I" },
+      ]},
+      { order: 37, questionText: "🧩 新しいコミュニティ", options: [
+        { value: "E", label: "恋人と一緒に広げていきたい", scoreValue: "E" },
+        { value: "I", label: "無理に広げず心地よい範囲で", scoreValue: "I" },
+      ]},
+      { order: 38, questionText: "🏙️ 外出と内向", options: [
+        { value: "E", label: "外で刺激を受ける時間が大事", scoreValue: "E" },
+        { value: "I", label: "家で落ち着いて回復する時間が大事", scoreValue: "I" },
+      ]},
+      { order: 39, questionText: "📞 連絡のリズム", options: [
+        { value: "E", label: "短い間隔でこまめに取りたい", scoreValue: "E" },
+        { value: "I", label: "必要なときに十分な長さで", scoreValue: "I" },
+      ]},
+      { order: 40, questionText: "🗓️ 予定の共有", options: [
+        { value: "E", label: "思いついたらすぐ共有したい", scoreValue: "E" },
+        { value: "I", label: "まとまってから必要分だけ共有", scoreValue: "I" },
+      ]},
+
+      // S/N 追加（41-48）
+      { order: 41, questionText: "🧱 トラブル対応", options: [
+        { value: "S", label: "現実的な手順で一つずつ解決", scoreValue: "S" },
+        { value: "N", label: "背景や意味を捉えて根本から見直す", scoreValue: "N" },
+      ]},
+      { order: 42, questionText: "📔 思い出の残し方", options: [
+        { value: "S", label: "写真・チケットなど具体的な形に残す", scoreValue: "S" },
+        { value: "N", label: "ストーリーや象徴的な出来事を語り継ぐ", scoreValue: "N" },
+      ]},
+      { order: 43, questionText: "🧩 デートの選び方", options: [
+        { value: "S", label: "レビューや実用性を重視する", scoreValue: "S" },
+        { value: "N", label: "直感やワクワク感を重視する", scoreValue: "N" },
+      ]},
+      { order: 44, questionText: "🪄 サプライズの基準", options: [
+        { value: "S", label: "相手が確実に使える・喜ぶもの", scoreValue: "S" },
+        { value: "N", label: "物語性や意外性があるもの", scoreValue: "N" },
+      ]},
+      { order: 45, questionText: "🧭 将来像の描き方", options: [
+        { value: "S", label: "時期・資金・手順など現実計画から", scoreValue: "S" },
+        { value: "N", label: "理想像から逆算して可能性を探る", scoreValue: "N" },
+      ]},
+      { order: 46, questionText: "🪟 視野の広げ方", options: [
+        { value: "S", label: "確かなデータ・事実を重ねる", scoreValue: "S" },
+        { value: "N", label: "新しい比喩や仮説で発想する", scoreValue: "N" },
+      ]},
+      { order: 47, questionText: "🧪 新しい挑戦", options: [
+        { value: "S", label: "まず小さく試して様子を見る", scoreValue: "S" },
+        { value: "N", label: "大胆にやってみて学びながら調整", scoreValue: "N" },
+      ]},
+      { order: 48, questionText: "🧠 話題の好み", options: [
+        { value: "S", label: "具体的体験・事実・共通タスク", scoreValue: "S" },
+        { value: "N", label: "未来・可能性・意味づけ", scoreValue: "N" },
+      ]},
+
+      // T/F 追加（49-56）
+      { order: 49, questionText: "🧩 価値観のすり合わせ", options: [
+        { value: "T", label: "論点を明確化し合意を形成", scoreValue: "T" },
+        { value: "F", label: "感情に寄り添い納得感を重視", scoreValue: "F" },
+      ]},
+      { order: 50, questionText: "🧯 衝突の火消し", options: [
+        { value: "T", label: "事実とルールで再発防止策を作る", scoreValue: "T" },
+        { value: "F", label: "気持ちのケアと関係修復を優先", scoreValue: "F" },
+      ]},
+      { order: 51, questionText: "🎙️ フィードバックの姿勢", options: [
+        { value: "T", label: "率直・簡潔に本質だけ伝える", scoreValue: "T" },
+        { value: "F", label: "相手の心情を配慮して丁寧に伝える", scoreValue: "F" },
+      ]},
+      { order: 52, questionText: "🫂 支え方", options: [
+        { value: "T", label: "代替案・解決策の提示で支援", scoreValue: "T" },
+        { value: "F", label: "共感・傾聴・寄り添いで支援", scoreValue: "F" },
+      ]},
+      { order: 53, questionText: "💞 表現の好み", options: [
+        { value: "T", label: "行動や実績で示されると嬉しい", scoreValue: "T" },
+        { value: "F", label: "言葉や態度で伝えられると嬉しい", scoreValue: "F" },
+      ]},
+      { order: 54, questionText: "🧭 判断基準", options: [
+        { value: "T", label: "公平性・合理性を優先", scoreValue: "T" },
+        { value: "F", label: "関係性・気持ちを優先", scoreValue: "F" },
+      ]},
+      { order: 55, questionText: "🧩 役割分担", options: [
+        { value: "T", label: "適材適所で効率よく決めたい", scoreValue: "T" },
+        { value: "F", label: "気持ちの負担も考慮して調整", scoreValue: "F" },
+      ]},
+      { order: 56, questionText: "🧷 優先順位の衝突", options: [
+        { value: "T", label: "目的・手段を整理し最短解を選ぶ", scoreValue: "T" },
+        { value: "F", label: "お互いの満足度が高い折衷を探す", scoreValue: "F" },
+      ]},
+
+      // J/P 追加（57-64）
+      { order: 57, questionText: "🧾 家事・タスク管理", options: [
+        { value: "J", label: "役割・頻度を決めて維持する", scoreValue: "J" },
+        { value: "P", label: "臨機応変に都度分担する", scoreValue: "P" },
+      ]},
+      { order: 58, questionText: "🎁 予定外の出来事", options: [
+        { value: "J", label: "予定に戻す方法を優先して考える", scoreValue: "J" },
+        { value: "P", label: "流れに乗って新しい楽しみを探す", scoreValue: "P" },
+      ]},
+      { order: 59, questionText: "🗂️ 情報の整理", options: [
+        { value: "J", label: "カテゴリ・ルールで整えると安心", scoreValue: "J" },
+        { value: "P", label: "必要になったら検索・探索でOK", scoreValue: "P" },
+      ]},
+      { order: 60, questionText: "🏃 デートの移動", options: [
+        { value: "J", label: "時間厳守・最短経路で進めたい", scoreValue: "J" },
+        { value: "P", label: "気分で寄り道も楽しみたい", scoreValue: "P" },
+      ]},
+      { order: 61, questionText: "🛠️ 予算の組み方", options: [
+        { value: "J", label: "毎月の枠を決めて運用", scoreValue: "J" },
+        { value: "P", label: "都度話し合いで柔軟に対応", scoreValue: "P" },
+      ]},
+      { order: 62, questionText: "📅 年間イベント", options: [
+        { value: "J", label: "毎年のパターンを作って安定させたい", scoreValue: "J" },
+        { value: "P", label: "その年の気分で変化を楽しみたい", scoreValue: "P" },
+      ]},
+      { order: 63, questionText: "🧭 優先の切替", options: [
+        { value: "J", label: "事前合意を優先・遵守が基本", scoreValue: "J" },
+        { value: "P", label: "状況に合わせて柔軟に再調整", scoreValue: "P" },
+      ]},
+      { order: 64, questionText: "🎬 一日の締め方", options: [
+        { value: "J", label: "ルーティンで心地よく締めたい", scoreValue: "J" },
+        { value: "P", label: "その日のベストで自由に締めたい", scoreValue: "P" },
+      ]},
+    ];
+
+    const existingOrders = new Set(existing.map((q) => q.order));
+    let inserted = 0;
+    for (const q of EXTRA_33_64) {
+      if (existingOrders.has(q.order)) continue;
+      await ctx.db.insert("testQuestions", {
+        testId: test._id,
+        order: q.order,
+        questionText: q.questionText,
+        questionType: "multiple",
+        options: q.options,
+      });
+      inserted++;
+    }
+
+    const newCount = existing.length + inserted;
+    await ctx.db.patch(test._id, {
+      questionCount: Math.max(64, newCount),
+      estimatedMinutes: 12,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      success: true,
+      message: `質問を追加しました（+${inserted}）`,
+      questionCount: Math.max(64, newCount),
+    };
+  },
+});

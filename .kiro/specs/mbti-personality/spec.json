@@ -1,0 +1,25 @@
+{
+  "name": "mbti-personality",
+  "description": "MBTI性格診断（本格版60問）",
+  "status": "in-progress",
+  "phases": {
+    "requirements": {
+      "status": "approved",
+      "approvedAt": "2026-01-06"
+    },
+    "design": {
+      "status": "approved",
+      "approvedAt": "2026-01-06"
+    },
+    "tasks": {
+      "status": "in-progress",
+      "startedAt": "2026-01-06"
+    }
+  },
+  "metadata": {
+    "category": "personality",
+    "questionCount": 60,
+    "scoringType": "dimension",
+    "estimatedMinutes": 15
+  }
+}

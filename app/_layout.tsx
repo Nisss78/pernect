@@ -3,6 +3,7 @@ import { ConvexReactClient, useConvexAuth, useMutation } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
 import { api } from "../convex/_generated/api";
 import "../global.css";
@@ -28,9 +29,18 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      registerForPushNotificationsAsync().then((token) => {
-        storeUser({ pushToken: token });
-      });
+      const syncUser = async () => {
+        let token: string | undefined;
+        try {
+          token = await registerForPushNotificationsAsync();
+        } catch (e) {
+          console.error("Error getting push token:", e);
+        }
+        // Push token取得の成否に関わらず、ユーザー情報の同期（userId自動生成など）を実行
+        await storeUser({ pushToken: token });
+      };
+
+      syncUser();
     }
   }, [isAuthenticated]);
 
@@ -38,8 +48,7 @@ function RootLayoutNav() {
     <>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/sign-up" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <Toaster />
@@ -49,10 +58,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <RootLayoutNav />
-      </ConvexProviderWithClerk>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+          <RootLayoutNav />
+        </ConvexProviderWithClerk>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   );
 }

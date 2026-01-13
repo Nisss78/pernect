@@ -1,0 +1,17 @@
+{
+  "name": "schwartz-values",
+  "description": "Schwartz価値観診断（10の普遍的価値）",
+  "status": "in-progress",
+  "phases": {
+    "requirements": { "status": "approved", "approvedAt": "2026-01-06" },
+    "design": { "status": "approved", "approvedAt": "2026-01-06" },
+    "tasks": { "status": "in-progress", "startedAt": "2026-01-06" }
+  },
+  "metadata": {
+    "category": "values",
+    "questionCount": 40,
+    "scoringType": "percentile",
+    "estimatedMinutes": 10,
+    "valueCount": 10
+  }
+}

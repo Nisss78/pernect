@@ -2,20 +2,27 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useConvexAuth } from 'convex/react';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { ActionMenu } from '../components/ActionMenu';
-import { AIChatScreen } from '../components/AIChatScreen';
-import { FriendsMatchScreen } from '../components/FriendsMatchScreen';
-import { HomeScreen } from '../components/HomeScreen';
-import { ProfileEditScreen } from '../components/ProfileEditScreen';
-import { ProfileScreen } from '../components/ProfileScreen';
-import { SettingsScreen } from '../components/SettingsScreen';
-import { TestListScreen } from '../components/TestListScreen';
-import { TestResultScreen } from '../components/TestResultScreen';
-import { TestScreen } from '../components/TestScreen';
-import { WelcomeScreen } from '../components/WelcomeScreen';
+import { ActionMenu } from '../features/common/components/ActionMenu';
+import { AIChatScreen } from '../features/ai-chat/screens/AIChatScreen';
+import { FriendsMatchScreen } from '../features/friends/screens/FriendsMatchScreen';
+import { FriendsListScreen } from '../features/friends/screens/FriendsListScreen';
+import { FriendRequestsScreen } from '../features/friends/screens/FriendRequestsScreen';
+import { AddFriendScreen } from '../features/friends/screens/AddFriendScreen';
+import { FriendProfileScreen } from '../features/friends/screens/FriendProfileScreen';
+import { FriendAnalysisScreen } from '../features/friends/screens/FriendAnalysisScreen';
+import { HomeScreen } from '../features/home/screens/HomeScreen';
+import { IntegratedAnalysisScreen } from '../features/integrated-analysis/screens/IntegratedAnalysisScreen';
+import { AnalysisResultScreen } from '../features/integrated-analysis/screens/AnalysisResultScreen';
+import { ProfileEditScreen } from '../features/profile/screens/ProfileEditScreen';
+import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
+import { SettingsScreen } from '../features/settings/screens/SettingsScreen';
+import { TestListScreen } from '../features/tests/screens/TestListScreen';
+import { TestResultScreen } from '../features/tests/screens/TestResultScreen';
+import { TestScreen } from '../features/tests/screens/TestScreen';
+import { WelcomeScreen } from '../features/welcome/screens/WelcomeScreen';
 import { Id } from '../convex/_generated/dataModel';
 
-type Screen = 'home' | 'profile' | 'settings' | 'ai-chat' | 'friends-match' | 'profile-edit' | 'test-list' | 'test' | 'test-result';
+type Screen = 'home' | 'profile' | 'settings' | 'ai-chat' | 'friends-match' | 'friends-list' | 'friend-requests' | 'add-friend' | 'friend-profile' | 'friend-analysis' | 'integrated-analysis' | 'analysis-result' | 'profile-edit' | 'test-list' | 'test' | 'test-result';
 
 export default function IndexPage() {
   const { signOut, isSignedIn, isLoaded: isClerkLoaded } = useAuth();
@@ -26,6 +33,12 @@ export default function IndexPage() {
   // 診断テスト用のstate
   const [currentTestSlug, setCurrentTestSlug] = useState<string | null>(null);
   const [currentResultId, setCurrentResultId] = useState<Id<"testResults"> | null>(null);
+
+  // 統合分析用のstate
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<Id<"integratedAnalyses"> | null>(null);
+
+  // 友達機能用のstate
+  const [currentFriendId, setCurrentFriendId] = useState<Id<"users"> | null>(null);
 
   useEffect(() => {
     console.log('[Index] Clerk isSignedIn:', isSignedIn, 'isClerkLoaded:', isClerkLoaded);
@@ -52,8 +65,24 @@ export default function IndexPage() {
     );
   }
 
-  const handleNavigateFromMenu = (screen: 'ai-chat' | 'friends-match') => {
+  const handleNavigateFromMenu = (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis') => {
     setCurrentScreen(screen);
+  };
+
+  // 統合分析用のハンドラー
+  const handleAnalysisComplete = (analysisId: Id<"integratedAnalyses">) => {
+    setCurrentAnalysisId(analysisId);
+    setCurrentScreen('analysis-result');
+  };
+
+  const handleViewAnalysis = (analysisId: Id<"integratedAnalyses">) => {
+    setCurrentAnalysisId(analysisId);
+    setCurrentScreen('analysis-result');
+  };
+
+  const handleBackFromAnalysisResult = () => {
+    setCurrentAnalysisId(null);
+    setCurrentScreen('integrated-analysis');
   };
 
   const handleBackToMain = () => {
@@ -82,12 +111,107 @@ export default function IndexPage() {
     setCurrentScreen('test-list');
   };
 
-  const renderScreen = () => {
+  // 友達機能用のハンドラー
+  const handleFriendPress = (friendId: Id<"users">) => {
+    setCurrentFriendId(friendId);
+    setCurrentScreen('friend-profile');
+  };
+
+  const handleFriendAnalysisPress = (friendId: Id<"users">) => {
+    setCurrentFriendId(friendId);
+    setCurrentScreen('friend-analysis');
+  };
+
+  const handleBackToFriendsMatch = () => {
+    setCurrentFriendId(null);
+    setCurrentScreen('friends-match');
+  };
+
+  const renderOtherScreens = () => {
     switch (currentScreen) {
       case 'ai-chat':
         return <AIChatScreen onBack={handleBackToMain} />;
       case 'friends-match':
-        return <FriendsMatchScreen onBack={handleBackToMain} />;
+        return (
+          <FriendsMatchScreen
+            onBack={handleBackToMain}
+            onFriendsListPress={() => setCurrentScreen('friends-list')}
+            onRequestsPress={() => setCurrentScreen('friend-requests')}
+            onAddFriendPress={() => setCurrentScreen('add-friend')}
+            onFriendPress={handleFriendPress}
+            onAnalysisPress={handleFriendAnalysisPress}
+          />
+        );
+      case 'friends-list':
+        return (
+          <FriendsListScreen
+            onBack={handleBackToFriendsMatch}
+            onFriendPress={handleFriendPress}
+            onAnalysisPress={handleFriendAnalysisPress}
+            onRequestsPress={() => setCurrentScreen('friend-requests')}
+            onAddFriendPress={() => setCurrentScreen('add-friend')}
+          />
+        );
+      case 'friend-requests':
+        return (
+          <FriendRequestsScreen onBack={handleBackToFriendsMatch} />
+        );
+      case 'add-friend':
+        return (
+          <AddFriendScreen onBack={handleBackToFriendsMatch} />
+        );
+      case 'friend-profile':
+        return currentFriendId ? (
+          <FriendProfileScreen
+            friendId={currentFriendId}
+            onBack={handleBackToFriendsMatch}
+            onAnalysisPress={handleFriendAnalysisPress}
+          />
+        ) : (
+          <FriendsListScreen
+            onBack={handleBackToFriendsMatch}
+            onFriendPress={handleFriendPress}
+            onAnalysisPress={handleFriendAnalysisPress}
+            onRequestsPress={() => setCurrentScreen('friend-requests')}
+            onAddFriendPress={() => setCurrentScreen('add-friend')}
+          />
+        );
+      case 'friend-analysis':
+        return currentFriendId ? (
+          <FriendAnalysisScreen
+            friendId={currentFriendId}
+            onBack={handleBackToFriendsMatch}
+          />
+        ) : (
+          <FriendsListScreen
+            onBack={handleBackToFriendsMatch}
+            onFriendPress={handleFriendPress}
+            onAnalysisPress={handleFriendAnalysisPress}
+            onRequestsPress={() => setCurrentScreen('friend-requests')}
+            onAddFriendPress={() => setCurrentScreen('add-friend')}
+          />
+        );
+      case 'integrated-analysis':
+        return (
+          <IntegratedAnalysisScreen
+            onBack={handleBackToMain}
+            onAnalysisComplete={handleAnalysisComplete}
+            onViewAnalysis={handleViewAnalysis}
+          />
+        );
+      case 'analysis-result':
+        return currentAnalysisId ? (
+          <AnalysisResultScreen
+            analysisId={currentAnalysisId}
+            onBack={handleBackFromAnalysisResult}
+          />
+        ) : (
+          <IntegratedAnalysisScreen
+            onBack={handleBackToMain}
+            onAnalysisComplete={handleAnalysisComplete}
+            onViewAnalysis={handleViewAnalysis}
+          />
+        );
       case 'test-list':
         return (
           <TestListScreen
@@ -124,13 +248,6 @@ export default function IndexPage() {
             onStartTest={handleStartTest}
           />
         );
-      case 'profile':
-        return (
-          <ProfileScreen
-            onNavigate={(screen) => setCurrentScreen(screen)}
-            onActionPress={() => setIsActionMenuVisible(true)}
-          />
-        );
       case 'settings':
         return (
           <SettingsScreen
@@ -141,18 +258,11 @@ export default function IndexPage() {
       case 'profile-edit':
         return (
           <ProfileEditScreen
-            onBack={() => setCurrentScreen('settings')}
+            onBack={() => setCurrentScreen('profile')}
           />
         );
-      case 'home':
       default:
-        return (
-          <HomeScreen
-            onSignOut={() => signOut()}
-            onNavigate={(screen) => setCurrentScreen(screen as Screen)}
-            onActionPress={() => setIsActionMenuVisible(true)}
-          />
-        );
+        return null;
     }
   };
 
@@ -167,7 +277,28 @@ export default function IndexPage() {
 
   return (
     <>
-      {renderScreen()}
+      <View className="flex-1">
+        {/* Keep Home and Profile mounted to cache data and UI state */}
+        <View style={{ flex: 1, display: currentScreen === 'home' ? 'flex' : 'none' }}>
+          <HomeScreen
+            onSignOut={() => signOut()}
+            onNavigate={(screen) => setCurrentScreen(screen as Screen)}
+            onActionPress={() => setIsActionMenuVisible(true)}
+            onStartTest={handleStartTest}
+          />
+        </View>
+        <View style={{ flex: 1, display: currentScreen === 'profile' ? 'flex' : 'none' }}>
+          <ProfileScreen
+            onNavigate={(screen) => setCurrentScreen(screen as Screen)}
+            onActionPress={() => setIsActionMenuVisible(true)}
+            onAnalysisPress={handleViewAnalysis}
+          />
+        </View>
+
+        {/* Other screens rendered on demand */}
+        {currentScreen !== 'home' && currentScreen !== 'profile' && renderOtherScreens()}
+      </View>
+
       <ActionMenu
         visible={isActionMenuVisible}
         onClose={() => setIsActionMenuVisible(false)}

@@ -230,4 +230,80 @@ export default defineSchema({
   })
     .index("by_type", ["typeCode"])
     .index("by_pair", ["typeCode", "compatibleType"]),
+
+  // 友達関係テーブル
+  friendships: defineTable({
+    requesterId: v.id("users"), // 申請者
+    receiverId: v.id("users"), // 受信者
+    status: v.string(), // "pending" | "accepted" | "rejected" | "cancelled"
+    requestedAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_requester", ["requesterId"])
+    .index("by_receiver", ["receiverId"])
+    .index("by_pair", ["requesterId", "receiverId"])
+    .index("by_receiver_status", ["receiverId", "status"]),
+
+  // 友達間の相性分析テーブル
+  friendAnalyses: defineTable({
+    user1Id: v.id("users"), // 常にID昇順で保存
+    user2Id: v.id("users"),
+    usedResults: v.array(
+      v.object({
+        userId: v.id("users"),
+        resultId: v.id("testResults"),
+        testSlug: v.string(),
+        resultType: v.string(),
+      })
+    ),
+    analysis: v.object({
+      overallCompatibility: v.number(), // 0-100
+      compatibilityLevel: v.string(), // "best" | "good" | "neutral" | "challenging"
+      title: v.string(),
+      summary: v.string(),
+      strengths: v.array(v.string()),
+      challenges: v.array(v.string()),
+      recommendations: v.array(v.string()),
+      insights: v.array(
+        v.object({
+          category: v.string(),
+          description: v.string(),
+          score: v.number(),
+        })
+      ),
+    }),
+    usedAiApi: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_user_pair", ["user1Id", "user2Id"])
+    .index("by_user1", ["user1Id"])
+    .index("by_user2", ["user2Id"]),
+
+  // 統合分析テーブル
+  integratedAnalyses: defineTable({
+    userId: v.id("users"),
+    // 選択した診断結果
+    selectedResults: v.array(
+      v.object({
+        resultId: v.id("testResults"),
+        testSlug: v.string(),
+        resultType: v.string(),
+      })
+    ),
+    // 分析テーマ
+    theme: v.string(), // "love" | "career" | "general"
+    // AI分析結果
+    analysis: v.object({
+      title: v.string(), // "あなたの恋愛傾向分析"
+      summary: v.string(), // 一文要約
+      insights: v.array(v.string()), // 主要インサイト（3-5項目）
+      strengths: v.array(v.string()), // 強み
+      challenges: v.array(v.string()), // 課題
+      recommendations: v.array(v.string()), // アドバイス
+    }),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_theme", ["userId", "theme"])
+    .index("by_created", ["createdAt"]),
 });
