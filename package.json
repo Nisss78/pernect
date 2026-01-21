@@ -11,8 +11,13 @@
     "lint": "expo lint",
     "convex": "convex dev",
     "build:ios": "eas build --platform ios --profile production",
+    "build:ios:local": "eas build --local --platform ios --profile production-local",
     "build:ios:preview": "eas build --platform ios --profile preview",
-    "submit:ios": "eas submit --platform ios"
+    "submit:ios": "eas submit --platform ios",
+    "deploy:testflight": "./scripts/deploy-testflight.sh cloud",
+    "deploy:testflight:local": "./scripts/deploy-testflight.sh local",
+    "prebuild:ios": "npx expo prebuild --platform ios --clean",
+    "xcode:open": "./scripts/build-xcode.sh"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.4",

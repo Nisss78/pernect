@@ -103,7 +103,62 @@ npx expo start
 
 ---
 
-## 🚀 TestFlightへのデプロイ
+## 🚀 TestFlightへのデプロイ（ワンコマンド）
+
+### ⚡ 最速デプロイ（推奨）
+
+**ビルド → TestFlightまで全自動:**
+
+```bash
+# クラウドビルド（推奨・最も簡単）
+npm run deploy:testflight
+```
+
+このコマンド一つで以下を自動実行します：
+1. ✅ iOSアプリをビルド（EASクラウド上で15〜30分）
+2. ✅ App Store Connectに自動提出
+3. ✅ TestFlightで利用可能になるまで処理
+
+**初回実行時に必要な情報:**
+- Apple ID（Apple Developerアカウント）
+- Apple Team ID（Apple Developer Program）
+- App Store Connect App ID（自動生成可能）
+
+---
+
+### 🏠 ローカルビルド（上級者向け）
+
+**オプション1: EAS Local Build（Docker使用）**
+
+```bash
+# ローカルでビルド → TestFlightに提出
+npm run deploy:testflight:local
+```
+
+**前提条件:**
+- Docker Desktopがインストール済み
+- 十分なディスク容量（20GB以上推奨）
+
+**オプション2: Xcodeで完全ローカルビルド**
+
+```bash
+# ネイティブプロジェクトを生成してXcodeを開く
+npm run xcode:open
+```
+
+その後、Xcodeで：
+1. **Product > Archive** を選択
+2. アーカイブ完了後 **Distribute App** をクリック
+3. **App Store Connect** を選択してアップロード
+
+**前提条件:**
+- macOS（Xcode必須）
+- Xcode Command Line Toolsインストール済み
+- CocoaPods インストール済み（`sudo gem install cocoapods`）
+
+---
+
+## 📋 個別コマンド（カスタマイズしたい場合）
 
 ### 前提条件
 
@@ -126,7 +181,7 @@ eas build:configure
 
 ### ステップ2: iOSビルドの実行
 
-**オプションA: 本番ビルド（TestFlight用）**
+**オプションA: クラウドビルド（推奨）**
 
 ```bash
 npm run build:ios
@@ -134,7 +189,15 @@ npm run build:ios
 eas build --platform ios --profile production
 ```
 
-**オプションB: プレビュービルド（内部テスト用）**
+**オプションB: ローカルビルド（Docker使用）**
+
+```bash
+npm run build:ios:local
+# または
+eas build --local --platform ios --profile production-local
+```
+
+**オプションC: プレビュービルド（内部テスト用）**
 
 ```bash
 npm run build:ios:preview
@@ -208,8 +271,33 @@ eas build:list
 eas build:view [build-id]
 ```
 
-### 便利なコマンド
+### 利用可能なコマンド一覧
 
+**🚀 デプロイコマンド（ワンコマンド）:**
+```bash
+npm run deploy:testflight         # ビルド → TestFlight（クラウド）
+npm run deploy:testflight:local   # ビルド → TestFlight（ローカル/Docker）
+```
+
+**🔨 ビルドコマンド（個別）:**
+```bash
+npm run build:ios                 # クラウドビルド（本番）
+npm run build:ios:local           # ローカルビルド（Docker使用）
+npm run build:ios:preview         # プレビュービルド
+npm run prebuild:ios              # ネイティブプロジェクト生成のみ
+```
+
+**📤 提出コマンド:**
+```bash
+npm run submit:ios                # App Store Connectに提出
+```
+
+**🍎 Xcodeコマンド:**
+```bash
+npm run xcode:open                # Xcodeでビルド環境を開く
+```
+
+**🔧 EAS管理コマンド:**
 ```bash
 # ビルド一覧を表示
 eas build:list
