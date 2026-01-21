@@ -14,7 +14,8 @@
       "buildNumber": "1.0.0",
       "infoPlist": {
         "NSCameraUsageDescription": "プロフィール写真の撮影に使用します",
-        "NSPhotoLibraryUsageDescription": "プロフィール写真の選択に使用します"
+        "NSPhotoLibraryUsageDescription": "プロフィール写真の選択に使用します",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -49,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "932029e3-17b3-4239-b5cb-0cbd5a5aa9cd"
+      }
     }
   }
 }
