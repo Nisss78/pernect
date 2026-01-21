@@ -9,7 +9,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "convex": "convex dev"
+    "convex": "convex dev",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:ios:preview": "eas build --platform ios --profile preview",
+    "submit:ios": "eas submit --platform ios"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.4",
