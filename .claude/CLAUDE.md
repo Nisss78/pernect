@@ -409,6 +409,33 @@ await signOut();
 3. Issuer URLをコピーして`convex/auth.config.ts`に設定
 4. Publishable Keyを`.env`に設定
 
+#### Googleログインの有効化（実装済み）
+
+アプリには既にGoogleログイン機能が実装されています。有効化するには：
+
+**Clerkダッシュボードでの設定:**
+1. **Clerk Dashboard** > **User & Authentication** > **Social Connections**
+2. **Google**を選択して有効化
+3. OAuth設定を選択：
+   - **テスト用**: "Use Clerk's development keys"（Expo Goで動作）
+   - **本番用**: Google Cloud Consoleで独自のOAuth認証情報を作成
+
+**実装済みの機能:**
+- `app/(auth)/sign-in.tsx`: Googleログインボタンとフロー
+- `app/(auth)/sign-up.tsx`: Google登録ボタンとフロー
+- `useOAuth`フック: ClerkのOAuth統合
+- `expo-web-browser`: OAuth高速化のためのウォームアップ
+
+**UI:**
+- メール/パスワード入力フォームの下に「または」区切り線
+- Googleアイコン付きの白いボタン「Googleでログイン/登録」
+- エラーハンドリング: アクセス拒否、セッション存在、その他のエラー
+
+**注意事項:**
+- Expo Goでのテストには、Clerkの開発用キーが必要
+- 本番環境（iOS/Android）では、独自のGoogle OAuth認証情報が必要
+- Redirect URLは自動的にClerkが管理
+
 ---
 
 ### 3. **NativeWind（スタイリング）**

@@ -1,12 +1,17 @@
-import { useSignUp } from '@clerk/clerk-expo';
+import { useOAuth, useSignUp } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import * as React from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+// Expo Web Browserのウォームアップ（OAuth高速化）
+WebBrowser.maybeCompleteAuthSession();
+
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
 
   const [emailAddress, setEmailAddress] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -55,6 +60,32 @@ export default function SignUpScreen() {
       alert('認証コードが正しくありません。');
     }
   };
+
+  const onGoogleSignUpPress = React.useCallback(async () => {
+    try {
+      const { createdSessionId, setActive: oAuthSetActive } = await startOAuthFlow();
+
+      if (createdSessionId) {
+        await oAuthSetActive!({ session: createdSessionId });
+        console.log('[SignUp] Google OAuth complete!');
+        // useEffectでisSignedInの変更を検知してリダイレクトする
+      } else {
+        // ユーザーがOAuthフローをキャンセルした場合など
+        console.log('[SignUp] Google OAuth cancelled or incomplete');
+      }
+    } catch (err: any) {
+      console.error('[SignUp] Google OAuth Error:', JSON.stringify(err, null, 2));
+
+      // エラーメッセージを日本語化
+      if (err.code === 'oauth_access_denied') {
+        alert('Googleログインがキャンセルされました。');
+      } else if (err.code === 'session_exists') {
+        alert('既にログイン済みです。');
+      } else {
+        alert('Googleログインに失敗しました。もう一度お試しください。');
+      }
+    }
+  }, [startOAuthFlow]);
 
   return (
     <View className="flex-1 bg-white">
@@ -130,6 +161,23 @@ export default function SignUpScreen() {
                   >
                     <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>アカウント作成</Text>
                   </LinearGradient>
+                </TouchableOpacity>
+
+                {/* 区切り線 */}
+                <View className="flex-row items-center gap-4 py-2">
+                  <View className="flex-1 h-px bg-slate-200" />
+                  <Text className="text-slate-400 font-medium">または</Text>
+                  <View className="flex-1 h-px bg-slate-200" />
+                </View>
+
+                {/* Googleログインボタン */}
+                <TouchableOpacity
+                  onPress={onGoogleSignUpPress}
+                  className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 flex-row items-center justify-center gap-3"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="logo-google" size={24} color="#4285F4" />
+                  <Text className="text-slate-900 font-bold text-base">Googleで登録</Text>
                 </TouchableOpacity>
 
                 <View className="flex-row items-center justify-center gap-2 py-2">
