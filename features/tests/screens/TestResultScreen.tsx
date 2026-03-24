@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,6 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useQuery } from "convex/react";
+import { toastHelpers } from "@/lib/toast-helpers";
+import { api } from "../../../convex/_generated/api";
+import ShareSheet from "../../share/components/ShareSheet";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -26,12 +30,16 @@ export function TestResultScreen({
 }: TestResultScreenProps) {
   const insets = useSafeAreaInsets();
   const { isLastLoverTest, lastLoverDetails, resultData } = useTestResultData(resultId);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+
+  // 現在のユーザー情報を取得
+  const currentUser = useQuery(api.users.current);
 
   if (!resultData) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-muted-foreground mt-4">結果を読み込み中...</Text>
+        <Text className="text-muted-foreground mt-4">結果を読み込んでいます... 💫</Text>
       </View>
     );
   }
@@ -59,6 +67,15 @@ export function TestResultScreen({
       minute: "2-digit",
     });
   };
+
+  // 結果読み込み時の成功トースト（初回のみ）
+  const [hasShownResultToast, setHasShownResultToast] = useState(false);
+  useEffect(() => {
+    if (resultData && test && !hasShownResultToast) {
+      toastHelpers.test.completed(test.title);
+      setHasShownResultToast(true);
+    }
+  }, [resultData, test, hasShownResultToast]);
 
   const renderScoreBar = (label: string, value: number, max: number, color: string) => {
     const percentage = Math.round((value / max) * 100);
@@ -792,7 +809,7 @@ export function TestResultScreen({
                 </Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity className="flex-1">
+            <TouchableOpacity onPress={() => setShareModalVisible(true)} className="flex-1">
               <LinearGradient
                 colors={[test.gradientStart, test.gradientEnd]}
                 start={{ x: 0, y: 0 }}
@@ -813,6 +830,21 @@ export function TestResultScreen({
           </View>
         </View>
       </ScrollView>
+
+      {/* ShareSheet Modal */}
+      <ShareSheet
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        resultId={resultId}
+        testTitle={test.title}
+        resultType={resultType}
+        scores={scores as Record<string, number>}
+        userName={currentUser?.name}
+        completedAt={completedAt}
+        gradientStart={test.gradientStart}
+        gradientEnd={test.gradientEnd}
+        icon={test.icon}
+      />
     </View>
   );
 }

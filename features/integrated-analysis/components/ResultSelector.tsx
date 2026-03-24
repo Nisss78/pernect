@@ -45,11 +45,11 @@ const TEST_CONFIG: Record<
     gradientEnd: "#1d4ed8",
   },
   "last-lover": {
-    label: "最後の恋人",
+    label: "恋愛診断",
     icon: "heart",
     iconComponent: "ionicons",
-    gradientStart: "#ec4899",
-    gradientEnd: "#db2777",
+    gradientStart: "#a855f7",
+    gradientEnd: "#6366f1",
   },
   strengths: {
     label: "強み",

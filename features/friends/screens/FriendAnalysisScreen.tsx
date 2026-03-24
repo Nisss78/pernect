@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAction, useMutation, useQuery } from "convex/react";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +24,7 @@ export function FriendAnalysisScreen({
   onBack,
 }: FriendAnalysisScreenProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingDeep, setIsGeneratingDeep] = useState(false);
 
   // 分析に必要なデータを取得
   const analysisData = useQuery(api.friendships.getAnalysisData, { friendId });
@@ -32,10 +34,30 @@ export function FriendAnalysisScreen({
     friendId,
   });
 
+  // 深掘り分析アクセス権チェック
+  const deepAccess = useQuery(api.friendships.checkDeepAnalysisAccess);
+
   // 分析生成のmutation
   const generateAnalysis = useMutation(
     api.friendships.generateCompatibilityAnalysis
   );
+  const generateDeep = useAction(api.aiActions.runDeepCompatibility);
+
+  const handleGenerateDeepAnalysis = async () => {
+    if (!existingAnalysis) return;
+
+    setIsGeneratingDeep(true);
+    try {
+      await generateDeep({
+        friendId,
+        analysisId: existingAnalysis._id,
+      });
+    } catch (error: any) {
+      Alert.alert("エラー", error.message || "深掘り分析の生成に失敗しました");
+    } finally {
+      setIsGeneratingDeep(false);
+    }
+  };
 
   const handleGenerateAnalysis = async () => {
     if (!analysisData) return;
@@ -55,7 +77,8 @@ export function FriendAnalysisScreen({
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-muted-foreground mt-4">データを読み込み中...</Text>
+        <Text className="text-muted-foreground mt-4">相性分析をしています... ✨</Text>
+        <Text className="text-muted-foreground text-xs mt-1">もう少しお待ちください</Text>
       </View>
     );
   }
@@ -284,6 +307,151 @@ export function FriendAnalysisScreen({
               </View>
             </View>
           )}
+
+          {/* AI深掘り分析セクション */}
+          <View className="px-5 mb-6">
+            {existingAnalysis?.deepAnalysis ? (
+              /* 深掘り分析結果を表示 */
+              <View>
+                <View className="flex-row items-center mb-4">
+                  <Ionicons name="sparkles" size={22} color="#8b5cf6" />
+                  <Text className="text-lg font-bold text-foreground ml-2">
+                    AI深掘り分析
+                  </Text>
+                  <View className="ml-2 px-2 py-0.5 bg-purple-100 rounded-full">
+                    <Text className="text-purple-600 text-xs font-bold">Pro</Text>
+                  </View>
+                </View>
+
+                {/* タイトル & 概要 */}
+                <View className="bg-purple-50 rounded-2xl border border-purple-100 p-5 mb-4">
+                  <Text className="text-lg font-bold text-foreground mb-3">
+                    {existingAnalysis.deepAnalysis.title}
+                  </Text>
+                  <Text className="text-foreground leading-6">
+                    {existingAnalysis.deepAnalysis.overview}
+                  </Text>
+                </View>
+
+                {/* セクション別インサイト */}
+                {existingAnalysis.deepAnalysis.sections?.map((section: any, index: number) => (
+                  <View key={index} className="bg-card rounded-2xl border border-border p-4 mb-3">
+                    <Text className="font-bold text-foreground mb-2">
+                      {section.category}
+                    </Text>
+                    <Text className="text-foreground leading-5 mb-3">
+                      {section.insight}
+                    </Text>
+                    <View className="bg-purple-50 rounded-xl p-3">
+                      <View className="flex-row items-start">
+                        <Ionicons name="bulb" size={16} color="#8b5cf6" style={{ marginTop: 2 }} />
+                        <Text className="flex-1 ml-2 text-purple-700 text-sm">
+                          {section.advice}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+
+                {/* 隠れたダイナミクス */}
+                {existingAnalysis.deepAnalysis.hiddenDynamics && (
+                  <View className="bg-indigo-50 rounded-2xl border border-indigo-100 p-5 mb-3">
+                    <View className="flex-row items-center mb-3">
+                      <Ionicons name="eye" size={18} color="#6366f1" />
+                      <Text className="font-bold text-foreground ml-2">隠れたダイナミクス</Text>
+                    </View>
+                    <Text className="text-foreground leading-6">
+                      {existingAnalysis.deepAnalysis.hiddenDynamics}
+                    </Text>
+                  </View>
+                )}
+
+                {/* 成長のロードマップ */}
+                {existingAnalysis.deepAnalysis.growthPath && (
+                  <View className="bg-emerald-50 rounded-2xl border border-emerald-100 p-5 mb-3">
+                    <View className="flex-row items-center mb-3">
+                      <Ionicons name="trending-up" size={18} color="#10b981" />
+                      <Text className="font-bold text-foreground ml-2">成長のロードマップ</Text>
+                    </View>
+                    <Text className="text-foreground leading-6">
+                      {existingAnalysis.deepAnalysis.growthPath}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : deepAccess?.hasAccess ? (
+              /* プレミアムユーザー：深掘り分析ボタン */
+              <TouchableOpacity
+                onPress={handleGenerateDeepAnalysis}
+                disabled={isGeneratingDeep}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#8b5cf6", "#6366f1"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ borderRadius: 20, padding: 20 }}
+                >
+                  {isGeneratingDeep ? (
+                    <View className="items-center py-2">
+                      <ActivityIndicator size="small" color="white" />
+                      <Text className="text-white font-semibold mt-3">
+                        AIが深掘り分析中...
+                      </Text>
+                      <Text className="text-white/70 text-sm mt-1">
+                        30秒ほどお待ちください
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="items-center">
+                      <Ionicons name="sparkles" size={32} color="white" />
+                      <Text className="text-white text-lg font-bold mt-3">
+                        AIで深掘り分析する
+                      </Text>
+                      <Text className="text-white/80 text-sm mt-1 text-center">
+                        2人の関係の本質をAIが心理学的に読み解きます
+                      </Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              /* 無料ユーザー：アップグレードCTA */
+              <View className="bg-slate-50 rounded-2xl border border-slate-200 p-5">
+                <View className="items-center">
+                  <View className="w-14 h-14 bg-slate-200 rounded-full items-center justify-center mb-3">
+                    <Ionicons name="lock-closed" size={28} color="#8b5cf6" />
+                  </View>
+                  <Text className="text-lg font-bold text-foreground mb-2">
+                    AI深掘り分析
+                  </Text>
+                  <Text className="text-muted-foreground text-center text-sm mb-4 leading-5">
+                    AIが2人の関係の本質を心理学的に読み解き、{'\n'}
+                    具体的なアドバイスを提供します
+                  </Text>
+                  <View className="bg-purple-50 rounded-xl p-3 w-full mb-4">
+                    <View className="flex-row items-center mb-2">
+                      <Ionicons name="checkmark-circle" size={16} color="#8b5cf6" />
+                      <Text className="ml-2 text-sm text-foreground">コミュニケーションパターン分析</Text>
+                    </View>
+                    <View className="flex-row items-center mb-2">
+                      <Ionicons name="checkmark-circle" size={16} color="#8b5cf6" />
+                      <Text className="ml-2 text-sm text-foreground">隠れた関係のダイナミクス</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Ionicons name="checkmark-circle" size={16} color="#8b5cf6" />
+                      <Text className="ml-2 text-sm text-foreground">成長のロードマップ</Text>
+                    </View>
+                  </View>
+                  <View className="px-5 py-2 bg-purple-100 rounded-full">
+                    <Text className="text-purple-700 font-bold text-sm">
+                      Proプランで利用可能
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
 
           {/* 再分析ボタン */}
           <View className="px-5 mb-6">
@@ -522,7 +690,7 @@ function getTestName(slug: string): string {
   const testNames: Record<string, string> = {
     mbti: "MBTI診断",
     big5: "BIG5診断",
-    "last-lover": "最後の恋人診断",
+    "last-lover": "恋愛診断",
     enneagram: "エニアグラム",
     career: "キャリア診断",
   };

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -13,8 +13,11 @@ export function useIntegratedAnalysis() {
   // 分析履歴を取得
   const analysisHistory = useQuery(api.integratedAnalyses.listByUser, {});
 
-  // 分析作成mutation
-  const createAnalysisMutation = useMutation(api.integratedAnalyses.create);
+  // AI利用可能性チェック
+  const aiAvailability = useQuery(api.integratedAnalyses.isAIAvailable, {});
+
+  // 分析作成action（Python Agent Service経由）
+  const runAnalysisAction = useAction(api.aiActions.runIntegratedAnalysis);
 
   // 最新の診断結果のみを抽出（テストスラグごとに1つ）
   const latestResultsByTest = useCallback(() => {
@@ -42,21 +45,26 @@ export function useIntegratedAnalysis() {
     }));
   }, [allResults]);
 
-  // 分析を作成
+  // 分析を作成（action経由でPython Agent Serviceを呼び出し）
   const createAnalysis = useCallback(
-    async (selectedResultIds: Id<"testResults">[], theme: AnalysisTheme) => {
+    async (
+      selectedResultIds: Id<"testResults">[],
+      theme: AnalysisTheme,
+      useAI?: boolean
+    ) => {
       setIsCreating(true);
       try {
-        const result = await createAnalysisMutation({
+        const result = await runAnalysisAction({
           selectedResultIds,
           theme,
+          useAI,
         });
         return result;
       } finally {
         setIsCreating(false);
       }
     },
-    [createAnalysisMutation]
+    [runAnalysisAction]
   );
 
   return {
@@ -67,6 +75,9 @@ export function useIntegratedAnalysis() {
     // ローディング状態
     isLoading: allResults === undefined || analysisHistory === undefined,
     isCreating,
+
+    // AI利用可能性
+    aiAvailability: aiAvailability ?? { available: false, reason: "loading" },
 
     // アクション
     createAnalysis,

@@ -22,11 +22,15 @@ interface DiagnosticResult {
 interface DiagnosticGridProps {
   diagnostics: DiagnosticResult[];
   onDiagnosticPress: (testSlug: string) => void;
+  friendVisibleSlugs?: string[];
+  onToggleFriendVisibility?: (testSlug: string) => void;
 }
 
 export function DiagnosticGrid({
   diagnostics,
   onDiagnosticPress,
+  friendVisibleSlugs,
+  onToggleFriendVisibility,
 }: DiagnosticGridProps) {
   // Create a map for quick lookup
   const resultMap = new Map(
@@ -48,6 +52,12 @@ export function DiagnosticGrid({
             resultType={resultType}
             onPress={() => onDiagnosticPress(slug)}
             index={index}
+            isVisibleToFriends={friendVisibleSlugs?.includes(slug)}
+            onToggleFriendVisibility={
+              onToggleFriendVisibility
+                ? () => onToggleFriendVisibility(slug)
+                : undefined
+            }
           />
         );
       })}

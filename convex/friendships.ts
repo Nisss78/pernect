@@ -1,5 +1,10 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
+import { extractTestData, computeCompatibility } from "./compatibilityEngine";
+import type { LastLoverCompatEntry } from "./compatibilityEngine";
+import { generateDeepCompatibilityAnalysis } from "./ai";
+import type { DeepCompatibilityInput } from "./ai";
 
 // 友達申請を送る
 export const sendRequest = mutation({
@@ -85,6 +90,15 @@ export const sendRequest = mutation({
       requestedAt: Date.now(),
     });
 
+    // 通知を送信
+    if (receiver.tokenIdentifier) {
+      await ctx.runMutation(api.notifications.sendFriendRequestNotification, {
+        receiverUserId: receiver.tokenIdentifier,
+        requesterName: currentUser.name ?? "誰か",
+        friendshipId,
+      });
+    }
+
     return { status: "pending", friendshipId };
   },
 });
@@ -128,6 +142,16 @@ export const acceptRequest = mutation({
       status: "accepted",
       respondedAt: Date.now(),
     });
+
+    // 申請者に通知を送信
+    const requester = await ctx.db.get(friendship.requesterId);
+    if (requester?.tokenIdentifier) {
+      await ctx.runMutation(api.notifications.sendFriendAcceptedNotification, {
+        requesterUserId: requester.tokenIdentifier,
+        accepterName: currentUser.name ?? "誰か",
+        friendshipId: args.friendshipId,
+      });
+    }
 
     return { success: true };
   },
@@ -716,12 +740,54 @@ export const generateCompatibilityAnalysis = mutation({
       })),
     ];
 
-    // 相性分析ロジック（MBTI, 最後の恋人診断などを考慮）
-    const analysis = generateCompatibilityResult(
-      currentUser,
-      friend,
-      myResultsData,
-      friendResultsData
+    // 新エンジンでテストデータを抽出
+    const user1Data = extractTestData(myResultsData);
+    const user2Data = extractTestData(friendResultsData);
+
+    // Last Lover のDB相性データを取得（双方向チェック）
+    let lastLoverCompat: LastLoverCompatEntry | null = null;
+    if (user1Data.lastLover && user2Data.lastLover) {
+      const entry = await ctx.db
+        .query("lastLoverCompatibility")
+        .withIndex("by_pair", (q) =>
+          q
+            .eq("typeCode", user1Data.lastLover!.resultType)
+            .eq("compatibleType", user2Data.lastLover!.resultType)
+        )
+        .unique();
+      if (entry) {
+        lastLoverCompat = {
+          compatibilityLevel: entry.compatibilityLevel,
+          reason: entry.reason,
+          advice: entry.advice,
+        };
+      } else {
+        // 逆方向も試行
+        const reverseEntry = await ctx.db
+          .query("lastLoverCompatibility")
+          .withIndex("by_pair", (q) =>
+            q
+              .eq("typeCode", user2Data.lastLover!.resultType)
+              .eq("compatibleType", user1Data.lastLover!.resultType)
+          )
+          .unique();
+        if (reverseEntry) {
+          lastLoverCompat = {
+            compatibilityLevel: reverseEntry.compatibilityLevel,
+            reason: reverseEntry.reason,
+            advice: reverseEntry.advice,
+          };
+        }
+      }
+    }
+
+    // 相性分析ロジック（新エンジン）
+    const analysis = computeCompatibility(
+      currentUser.name || "あなた",
+      friend.name || "友達",
+      user1Data,
+      user2Data,
+      lastLoverCompat
     );
 
     // ID順序を統一して保存
@@ -739,132 +805,23 @@ export const generateCompatibilityAnalysis = mutation({
       createdAt: Date.now(),
     });
 
+    // 友達に通知を送信（自分以外）
+    const friendIdToNotify = currentUser._id === id1 ? id2 : id1;
+    const friendToNotify = await ctx.db.get(friendIdToNotify);
+    if (friendToNotify?.tokenIdentifier) {
+      await ctx.runMutation(api.notifications.sendAnalysisCompleteNotification, {
+        userId: friendToNotify.tokenIdentifier,
+        friendName: currentUser.name ?? "友達",
+        analysisId,
+        compatibilityScore: analysis.overallCompatibility,
+      });
+    }
+
     return { analysisId, analysis };
   },
 });
 
-// 相性分析結果を生成するヘルパー関数
-function generateCompatibilityResult(
-  user1: any,
-  user2: any,
-  user1Results: any[],
-  user2Results: any[]
-) {
-  // MBTI相性マトリクス
-  const mbtiCompatibility: Record<string, Record<string, number>> = {
-    ENFP: { INFJ: 95, INTJ: 90, ENFJ: 85, ENTP: 80, INFP: 75 },
-    INFJ: { ENFP: 95, ENTP: 90, INTJ: 85, INFP: 80, ENFJ: 75 },
-    INTJ: { ENFP: 90, ENTP: 85, INFJ: 85, ENTJ: 80, INTP: 75 },
-    ENTP: { INFJ: 90, INTJ: 85, ENFP: 80, INTP: 75, ENTJ: 70 },
-    INFP: { ENFJ: 95, ENTJ: 90, INFJ: 85, ENFP: 80, ISFJ: 75 },
-    ENFJ: { INFP: 95, ISFP: 90, INFJ: 85, ENFP: 80, ESFJ: 75 },
-    ENTJ: { INFP: 90, INTP: 85, ENFP: 80, INTJ: 80, ENTP: 75 },
-    INTP: { ENTJ: 85, ESTJ: 80, INTJ: 75, ENTP: 75, INFJ: 70 },
-    ISFJ: { ESFP: 90, ESTP: 85, INFP: 80, ISFP: 75, ISTJ: 70 },
-    ESFJ: { ISFP: 90, ISTP: 85, ENFJ: 80, ESFP: 75, ISFJ: 70 },
-    ISTJ: { ESFP: 85, ESTP: 80, ISFJ: 75, ESTJ: 70, ISTP: 65 },
-    ESTJ: { ISFP: 85, ISTP: 80, INTP: 80, ISTJ: 75, ESFJ: 70 },
-    ISFP: { ENFJ: 90, ESFJ: 90, ESTJ: 85, ENTJ: 80, ISFJ: 75 },
-    ESFP: { ISFJ: 90, ISTJ: 85, ESFJ: 80, ESTP: 75, ENFP: 70 },
-    ISTP: { ESFJ: 85, ESTJ: 80, ESTP: 75, ISFP: 70, INTP: 65 },
-    ESTP: { ISFJ: 85, ISTJ: 80, ISTP: 75, ESFP: 75, ENTP: 70 },
-  };
-
-  let overallCompatibility = 70; // デフォルト
-  const insights: { category: string; description: string; score: number }[] = [];
-  const strengths: string[] = [];
-  const challenges: string[] = [];
-  const recommendations: string[] = [];
-
-  // MBTI相性計算
-  if (user1.mbti && user2.mbti) {
-    const mbtiScore =
-      mbtiCompatibility[user1.mbti]?.[user2.mbti] ||
-      mbtiCompatibility[user2.mbti]?.[user1.mbti] ||
-      65;
-    overallCompatibility = mbtiScore;
-
-    insights.push({
-      category: "性格タイプ",
-      description: `${user1.mbti}と${user2.mbti}の組み合わせ`,
-      score: mbtiScore,
-    });
-
-    // MBTI相性に基づく強みと課題
-    if (mbtiScore >= 85) {
-      strengths.push("自然な相性で、お互いを深く理解できる関係");
-      strengths.push("コミュニケーションがスムーズに取りやすい");
-    } else if (mbtiScore >= 70) {
-      strengths.push("異なる視点から刺激を受け合える関係");
-      challenges.push("考え方の違いで意見が分かれることも");
-    } else {
-      challenges.push("価値観の違いを理解する努力が必要");
-      recommendations.push("お互いの違いを尊重することが大切");
-    }
-  }
-
-  // 最後の恋人診断の結果を考慮
-  const user1LoverResult = user1Results.find(
-    (r) => r?.aiData?.testSlug === "last-lover"
-  );
-  const user2LoverResult = user2Results.find(
-    (r) => r?.aiData?.testSlug === "last-lover"
-  );
-
-  if (user1LoverResult && user2LoverResult) {
-    insights.push({
-      category: "恋愛スタイル",
-      description: `${user1LoverResult.resultType}と${user2LoverResult.resultType}の恋愛相性`,
-      score: 75,
-    });
-    strengths.push("恋愛診断から見ると、お互いの恋愛スタイルを理解しやすい");
-  }
-
-  // 総合スコアの調整
-  if (insights.length > 1) {
-    overallCompatibility = Math.round(
-      insights.reduce((sum, i) => sum + i.score, 0) / insights.length
-    );
-  }
-
-  // 相性レベルの判定
-  let compatibilityLevel: string;
-  let title: string;
-  if (overallCompatibility >= 85) {
-    compatibilityLevel = "best";
-    title = "✨ 最高の相性！";
-    strengths.push("お互いを高め合える素晴らしいパートナー");
-  } else if (overallCompatibility >= 70) {
-    compatibilityLevel = "good";
-    title = "💫 良い相性";
-    strengths.push("バランスの取れた良好な関係を築ける");
-  } else if (overallCompatibility >= 55) {
-    compatibilityLevel = "neutral";
-    title = "🌟 普通の相性";
-    recommendations.push("お互いの違いを理解し合う姿勢が大切");
-  } else {
-    compatibilityLevel = "challenging";
-    title = "💪 挑戦的な相性";
-    recommendations.push("違いを乗り越えることで大きく成長できる");
-  }
-
-  // デフォルトの推奨事項
-  if (recommendations.length === 0) {
-    recommendations.push("定期的なコミュニケーションを心がけましょう");
-    recommendations.push("お互いの強みを活かした協力関係を築きましょう");
-  }
-
-  return {
-    overallCompatibility,
-    compatibilityLevel,
-    title,
-    summary: `${user1.name || "あなた"}と${user2.name || "友達"}の相性は${overallCompatibility}%です`,
-    strengths,
-    challenges,
-    recommendations,
-    insights,
-  };
-}
+// 旧generateCompatibilityResult関数は compatibilityEngine.ts に移行済み
 
 // 既存の相性分析結果を取得
 export const getExistingAnalysis = query({
@@ -939,5 +896,150 @@ export const searchByUserId = query({
       image: user.image,
       mbti: user.mbti,
     };
+  },
+});
+
+// AI深掘り分析のアクセス権チェック
+export const checkDeepAnalysisAccess = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { hasAccess: false, reason: "not_authenticated" };
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!currentUser) {
+      return { hasAccess: false, reason: "user_not_found" };
+    }
+
+    // APIキーチェック
+    const hasApiKey = !!process.env.OPENROUTER_API_KEY;
+    if (!hasApiKey) {
+      return { hasAccess: false, reason: "no_api_key" };
+    }
+
+    // サブスクリプションチェック（Pro/Max）
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", currentUser._id).eq("status", "active")
+      )
+      .first();
+
+    const premiumPlans = ["pro_monthly", "pro_yearly", "max_monthly", "max_yearly"];
+    const hasPremium = subscription && premiumPlans.includes(subscription.planId);
+
+    return {
+      hasAccess: !!hasPremium,
+      reason: hasPremium ? "available" : "premium_required",
+      currentPlan: subscription?.planId || "free",
+    };
+  },
+});
+
+// AI深掘り相性分析を生成（プレミアム機能）
+export const generateDeepAnalysis = mutation({
+  args: {
+    friendId: v.id("users"),
+    analysisId: v.id("friendAnalyses"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("認証が必要です");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!currentUser) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    // プレミアムチェック
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", currentUser._id).eq("status", "active")
+      )
+      .first();
+
+    const premiumPlans = ["pro_monthly", "pro_yearly", "max_monthly", "max_yearly"];
+    if (!subscription || !premiumPlans.includes(subscription.planId)) {
+      throw new Error("この機能にはProプラン以上が必要です");
+    }
+
+    // 既存の基本分析を取得
+    const existingAnalysis = await ctx.db.get(args.analysisId);
+    if (!existingAnalysis) {
+      throw new Error("基本分析が見つかりません");
+    }
+
+    // 既に深掘り分析がある場合はエラー
+    if (existingAnalysis.deepAnalysis) {
+      throw new Error("この分析には既に深掘り分析があります");
+    }
+
+    const friend = await ctx.db.get(args.friendId);
+    if (!friend) {
+      throw new Error("友達が見つかりません");
+    }
+
+    // 2人の診断結果を取得
+    const myResults = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", currentUser._id))
+      .collect();
+
+    const friendResults = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", args.friendId))
+      .collect();
+
+    // AI深掘り分析を生成
+    const input: DeepCompatibilityInput = {
+      user1Name: currentUser.name || "あなた",
+      user2Name: friend.name || "友達",
+      user1Tests: myResults.map((r) => ({
+        testSlug: r.aiData?.testSlug || "unknown",
+        resultType: r.resultType,
+        scores: r.scores,
+      })),
+      user2Tests: friendResults.map((r) => ({
+        testSlug: r.aiData?.testSlug || "unknown",
+        resultType: r.resultType,
+        scores: r.scores,
+      })),
+      basicAnalysis: {
+        overallCompatibility: existingAnalysis.analysis.overallCompatibility,
+        strengths: existingAnalysis.analysis.strengths,
+        challenges: existingAnalysis.analysis.challenges,
+        insights: existingAnalysis.analysis.insights,
+      },
+    };
+
+    const deepResult = await generateDeepCompatibilityAnalysis(input);
+
+    // 既存の分析に深掘り結果を追加
+    await ctx.db.patch(args.analysisId, {
+      deepAnalysis: {
+        ...deepResult,
+        generatedAt: Date.now(),
+      },
+      usedAiApi: true,
+    });
+
+    return { success: true, deepAnalysis: deepResult };
   },
 });

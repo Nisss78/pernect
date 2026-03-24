@@ -1,17 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
-import React from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { toastHelpers } from "@/lib/toast-helpers";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+import { ProfileModal } from "../../profile/components/ProfileModal/ProfileModal";
+import { TEST_CONFIG } from "../../profile/components/ProfileModal/DiagnosticMiniCard";
+import { useModalAnimation } from "../../profile/components/ProfileModal/useModalAnimation";
+import { ProfileStickerBoard } from "../../profile/components/ProfileStickerBoard";
 import { useFriendsList } from "../hooks/useFriendsList";
 
 interface FriendProfileScreenProps {
@@ -19,6 +27,8 @@ interface FriendProfileScreenProps {
   onBack: () => void;
   onAnalysisPress: (friendId: Id<"users">) => void;
 }
+
+const TOTAL_TESTS = 7;
 
 export function FriendProfileScreen({
   friendId,
@@ -29,6 +39,41 @@ export function FriendProfileScreen({
     friendId,
   });
   const { removeFriend, isRemoving } = useFriendsList();
+  const insets = useSafeAreaInsets();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const avatarRef = useRef<View>(null);
+  const modalAnimation = useModalAnimation();
+
+  // Transform friend's test results to diagnostics list (deduplicated by testSlug)
+  const diagnosticsList = useMemo(() => {
+    if (
+      !friendProfile?.isFriend ||
+      !("testResults" in friendProfile) ||
+      !friendProfile.testResults
+    )
+      return [];
+
+    const latestBySlug = new Map<
+      string,
+      { testSlug: string; resultType: string; completedAt: number }
+    >();
+    for (const result of friendProfile.testResults) {
+      if (!result.testSlug) continue;
+      const slug = result.testSlug;
+      const existing = latestBySlug.get(slug);
+      if (!existing || result.completedAt > existing.completedAt) {
+        latestBySlug.set(slug, { testSlug: slug, resultType: result.resultType, completedAt: result.completedAt });
+      }
+    }
+
+    return Array.from(latestBySlug.values()).map((r) => ({
+      testSlug: r.testSlug,
+      resultType: r.resultType,
+    }));
+  }, [friendProfile]);
+
+  const completedTestCount = diagnosticsList.length;
 
   const handleRemoveFriend = () => {
     Alert.alert(
@@ -42,9 +87,16 @@ export function FriendProfileScreen({
           onPress: async () => {
             const result = await removeFriend(friendId);
             if (result.success) {
+              toastHelpers.common.success(
+                "友達を解除しました 👋",
+                `${friendProfile?.name || "このユーザー"}さんとの友達関係を解除しました`
+              );
               onBack();
             } else {
-              Alert.alert("エラー", "友達の解除に失敗しました");
+              toastHelpers.common.error(
+                "友達の解除に失敗しました",
+                "もう一度お試しください"
+              );
             }
           },
         },
@@ -52,179 +104,179 @@ export function FriendProfileScreen({
     );
   };
 
+  const handleAvatarPress = useCallback(() => {
+    avatarRef.current?.measureInWindow((x, y, width, height) => {
+      modalAnimation.open({ x, y, width, height });
+      setIsModalOpen(true);
+    });
+  }, [modalAnimation]);
+
+  const handleModalClose = useCallback(() => {
+    modalAnimation.close(() => {
+      setIsModalOpen(false);
+    });
+  }, [modalAnimation]);
+
+  // No-op for friend diagnostics (we don't have full result data to navigate to)
+  const handleDiagnosticPress = useCallback((_testSlug: string) => {}, []);
+
   if (!friendProfile) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.screen}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#8b5cf6" />
+        </View>
       </View>
     );
   }
 
+  const friendName = friendProfile.name || "ユーザー";
+
   return (
-    <View className="flex-1 bg-background">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* ヘッダー */}
-        <View className="px-5 pt-14 pb-4">
-          <View className="flex-row items-center justify-between">
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: Math.max(insets.top + 4, 16) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          style={styles.scrollView}
+        >
+          {/* ヘッダー: 戻るボタン & 友達解除 */}
+          <View style={styles.header}>
             <TouchableOpacity
               onPress={onBack}
-              className="flex-row items-center"
+              style={styles.backButton}
+              activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={24} color="#0f172a" />
-              <Text className="ml-2 text-foreground">戻る</Text>
+              <Ionicons name="arrow-back" size={22} color="#0f172a" />
+              <Text style={styles.backText}>戻る</Text>
             </TouchableOpacity>
 
             {friendProfile.isFriend && (
               <TouchableOpacity
                 onPress={handleRemoveFriend}
                 disabled={isRemoving === friendId}
-                className="px-4 py-2 rounded-xl bg-red-50"
+                style={styles.removeButton}
+                activeOpacity={0.7}
               >
-                <Text className="text-red-500 font-medium">友達解除</Text>
+                <Ionicons
+                  name="person-remove-outline"
+                  size={16}
+                  color="#ef4444"
+                />
               </TouchableOpacity>
             )}
           </View>
-        </View>
 
-        {/* プロフィールカード */}
-        <View className="px-5 mb-6">
-          <View className="bg-card rounded-3xl border border-border p-6 items-center">
-            {/* アバター */}
-            <View className="w-24 h-24 rounded-full bg-secondary items-center justify-center mb-4">
-              {friendProfile.image ? (
-                <Image
-                  source={{ uri: friendProfile.image }}
-                  className="w-24 h-24 rounded-full"
-                />
-              ) : (
-                <Ionicons name="person" size={48} color="#8b5cf6" />
-              )}
+          <View style={styles.panel}>
+            <View ref={avatarRef} collapsable={false}>
+              <ProfileStickerBoard
+                diagnostics={diagnosticsList}
+                userName={friendName}
+                userImage={friendProfile.image ?? undefined}
+                onCenterPress={handleAvatarPress}
+                onDiagnosticPress={handleDiagnosticPress}
+              />
             </View>
 
-            {/* 名前 */}
-            <Text className="text-2xl font-bold text-foreground mb-1">
-              {friendProfile.name || "ユーザー"}
-            </Text>
-            {friendProfile.userId && (
-              <Text className="text-muted-foreground mb-3">
-                @{friendProfile.userId}
-              </Text>
-            )}
-
-            {/* タグ */}
-            <View className="flex-row gap-2 mb-4">
-              {friendProfile.mbti && (
-                <View className="px-3 py-1 bg-purple-100 rounded-full">
-                  <Text className="text-purple-600 font-medium">
-                    {friendProfile.mbti}
-                  </Text>
-                </View>
-              )}
-              {friendProfile.isFriend && (
-                <View className="px-3 py-1 bg-green-100 rounded-full">
-                  <Text className="text-green-600 font-medium">友達</Text>
-                </View>
-              )}
-            </View>
-
-            {/* 自己紹介 */}
-            {friendProfile.bio && (
-              <Text className="text-muted-foreground text-center">
-                {friendProfile.bio}
-              </Text>
+            {/* 相性分析ボタン */}
+            {friendProfile.isFriend && (
+              <TouchableOpacity
+                onPress={() => onAnalysisPress(friendId)}
+                activeOpacity={0.8}
+                style={styles.analysisButton}
+              >
+                <Ionicons name="analytics" size={20} color="white" />
+                <Text style={styles.analysisButtonText}>相性を分析する</Text>
+              </TouchableOpacity>
             )}
           </View>
-        </View>
+        </ScrollView>
 
-        {/* 相性分析ボタン */}
-        {friendProfile.isFriend && (
-          <View className="px-5 mb-6">
-            <TouchableOpacity
-              onPress={() => onAnalysisPress(friendId)}
-              className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl p-4"
-              activeOpacity={0.8}
-              style={{ backgroundColor: "#ec4899" }}
-            >
-              <View className="flex-row items-center justify-center gap-3">
-                <Ionicons name="analytics" size={24} color="white" />
-                <Text className="text-white text-lg font-bold">
-                  相性を分析する
-                </Text>
-              </View>
-              <Text className="text-white/80 text-center text-sm mt-1">
-                AIが2人の診断結果から相性を分析します
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* 診断結果履歴（友達の場合のみ） */}
-        {friendProfile.isFriend && friendProfile.testResults && (
-          <View className="px-5 mb-6">
-            <Text className="text-lg font-bold text-foreground mb-4">
-              診断結果
-            </Text>
-
-            {friendProfile.testResults.length === 0 ? (
-              <View className="bg-secondary rounded-2xl p-6 items-center">
-                <Ionicons
-                  name="document-text-outline"
-                  size={32}
-                  color="#94a3b8"
-                />
-                <Text className="text-muted-foreground mt-2">
-                  まだ診断結果がありません
-                </Text>
-              </View>
-            ) : (
-              <View className="gap-3">
-                {friendProfile.testResults.map((result) => (
-                  <View
-                    key={result._id}
-                    className="bg-card rounded-2xl border border-border p-4 flex-row items-center"
-                  >
-                    <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mr-4">
-                      <Ionicons name="checkmark-circle" size={24} color="#8b5cf6" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold text-foreground">
-                        {result.resultType}
-                      </Text>
-                      {result.testSlug && (
-                        <Text className="text-sm text-muted-foreground">
-                          {getTestName(result.testSlug)}
-                        </Text>
-                      )}
-                    </View>
-                    <Text className="text-xs text-muted-foreground">
-                      {formatDate(result.completedAt)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* スペーサー */}
-        <View className="h-20" />
-      </ScrollView>
-    </View>
+        <ProfileModal
+          isVisible={modalAnimation.isOpen.value || isModalOpen}
+          onClose={handleModalClose}
+          onDiagnosticPress={handleDiagnosticPress}
+          overlayStyle={modalAnimation.overlayStyle}
+          modalCardStyle={modalAnimation.modalCardStyle}
+          contentStyle={modalAnimation.contentStyle}
+          progress={modalAnimation.progress}
+          userImage={friendProfile.image ?? undefined}
+          userName={friendName}
+          diagnostics={diagnosticsList}
+          completedCount={completedTestCount}
+          totalCount={TOTAL_TESTS}
+          sectionTitle={`${friendName}さんの診断結果`}
+          sectionSubtitle="友達の診断結果を確認"
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
-function getTestName(slug: string): string {
-  const testNames: Record<string, string> = {
-    "mbti": "MBTI診断",
-    "big5": "BIG5診断",
-    "last-lover": "最後の恋人診断",
-    "enneagram": "エニアグラム",
-    "career": "キャリア診断",
-  };
-  return testNames[slug] || slug;
-}
-
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
+const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: "#ffffff",
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 132,
+  },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  backButton: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    padding: 8,
+  },
+  backText: {
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  removeButton: {
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  panel: {
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
+  analysisButton: {
+    alignItems: "center",
+    backgroundColor: "#ec4899",
+    borderRadius: 16,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    width: "90%",
+  },
+  analysisButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+});

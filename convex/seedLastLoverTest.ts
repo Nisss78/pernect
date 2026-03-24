@@ -3,21 +3,21 @@ import { mutation } from "./_generated/server";
 // 診断テスト定義
 const LAST_LOVER_TEST = {
   slug: "last-lover",
-  title: "最後の恋人診断",
+  title: "恋愛診断",
   description:
-    "恋愛における行動パターンや価値観を4つの軸で分析し、16種類の恋愛キャラクタータイプに分類します。韓国発の人気恋愛診断！",
+    "恋愛における行動パターンや価値観を4つの軸で分析し、16種類の恋愛キャラクタータイプに分類します。あなたの恋愛傾向を発見しよう！",
   category: "love",
   questionCount: 16,
   estimatedMinutes: 5,
   scoringType: "dimension",
   resultField: undefined, // usersテーブルには保存しない（専用テーブルを使用）
   icon: "heart",
-  gradientStart: "#ec4899", // Pink
-  gradientEnd: "#a855f7", // Purple
+  gradientStart: "#a855f7", // Purple
+  gradientEnd: "#6366f1", // Indigo
   isActive: true,
   citation: {
     authors: ["Pernect Team"],
-    title: "最後の恋人診断 - 恋愛性格分析",
+    title: "恋愛診断 - 恋愛性格分析",
     year: 2024,
     url: "https://pernect.app",
   },
@@ -618,6 +618,30 @@ export const resetLastLoverTest = mutation({
       message: "最後の恋人診断をリセットしました",
       deletedQuestions: questions.length,
     };
+  },
+});
+
+// テストのタイトルと色を更新
+export const updateLastLoverTestMeta = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const test = await ctx.db
+      .query("tests")
+      .withIndex("by_slug", (q) => q.eq("slug", "last-lover"))
+      .unique();
+
+    if (!test) {
+      return { success: false, message: "恋愛診断が見つかりません" };
+    }
+
+    await ctx.db.patch(test._id, {
+      title: LAST_LOVER_TEST.title,
+      description: LAST_LOVER_TEST.description,
+      gradientStart: LAST_LOVER_TEST.gradientStart,
+      gradientEnd: LAST_LOVER_TEST.gradientEnd,
+    });
+
+    return { success: true, message: "恋愛診断のメタデータを更新しました" };
   },
 });
 

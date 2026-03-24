@@ -3,6 +3,7 @@
     "name": "pernect",
     "slug": "pernect",
     "version": "1.0.0",
+    "description": "AI分析であなた自身を発見する自己分析プラットフォーム",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pernect",
@@ -15,7 +16,17 @@
       "infoPlist": {
         "NSCameraUsageDescription": "プロフィール写真の撮影に使用します",
         "NSPhotoLibraryUsageDescription": "プロフィール写真の選択に使用します",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Pernect",
+        "NSPrivacyPolicyURL": "https://pernect.app/privacy"
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       }
     },
     "android": {
@@ -34,6 +45,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {

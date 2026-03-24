@@ -27,10 +27,10 @@ export const TEST_CONFIG: Record<
     colors: ["#3b82f6", "#2563eb"],
   },
   "last-lover": {
-    label: "最後の恋人",
+    label: "恋愛診断",
     labelJa: "恋愛タイプ",
     icon: "heart",
-    colors: ["#ec4899", "#db2777"],
+    colors: ["#a855f7", "#6366f1"],
   },
   strengths: {
     label: "強み",
@@ -63,6 +63,8 @@ interface DiagnosticMiniCardProps {
   resultType: string | null;
   onPress: () => void;
   index: number;
+  isVisibleToFriends?: boolean;
+  onToggleFriendVisibility?: () => void;
 }
 
 export function DiagnosticMiniCard({
@@ -70,6 +72,8 @@ export function DiagnosticMiniCard({
   resultType,
   onPress,
   index,
+  isVisibleToFriends,
+  onToggleFriendVisibility,
 }: DiagnosticMiniCardProps) {
   const config = TEST_CONFIG[testSlug];
 
@@ -78,6 +82,7 @@ export function DiagnosticMiniCard({
   }
 
   const hasResult = resultType !== null;
+  const showToggle = hasResult && onToggleFriendVisibility !== undefined;
 
   return (
     <Animated.View
@@ -99,6 +104,30 @@ export function DiagnosticMiniCard({
           <View style={styles.iconContainer}>
             <Ionicons name={config.icon} size={24} color="white" />
           </View>
+
+          {/* Friend visibility toggle */}
+          {showToggle && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onToggleFriendVisibility!();
+              }}
+              style={[
+                styles.visibilityToggle,
+                isVisibleToFriends
+                  ? styles.visibilityOn
+                  : styles.visibilityOff,
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isVisibleToFriends ? "people" : "eye-off-outline"}
+                size={12}
+                color={isVisibleToFriends ? "#ffffff" : "rgba(255,255,255,0.6)"}
+              />
+            </TouchableOpacity>
+          )}
 
           {/* Label */}
           <Text style={styles.label} numberOfLines={1}>
@@ -135,6 +164,7 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 120,
     justifyContent: "space-between",
+    position: "relative",
   },
   iconContainer: {
     width: 40,
@@ -144,6 +174,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
+  },
+  visibilityToggle: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  visibilityOn: {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  visibilityOff: {
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
   },
   label: {
     color: "rgba(255, 255, 255, 0.9)",

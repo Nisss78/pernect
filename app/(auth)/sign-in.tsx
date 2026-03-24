@@ -4,14 +4,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { toastHelpers } from '@/lib/toast-helpers';
 
 // Expo Web Browserのウォームアップ（OAuth高速化）
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
+  const { startOAuthFlow: startGoogleOAuth } = useOAuth({ strategy: 'oauth_google' });
+  const { startOAuthFlow: startAppleOAuth } = useOAuth({ strategy: 'oauth_apple' });
 
   const [emailAddress, setEmailAddress] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -20,36 +22,19 @@ export default function SignInScreen() {
   // 認証済みのリダイレクトは(auth)/_layout.tsxで処理
 
   const onSignInPress = React.useCallback(async () => {
-    console.log('[SignIn] onSignInPress called, isLoaded:', isLoaded);
     if (!isLoaded) {
-      console.log('[SignIn] Not loaded yet, returning');
       return;
     }
 
     try {
-      console.log('[SignIn] Creating sign in...');
-
-      // 既存のsign-in attemptをリセット
-      if (signIn.status) {
-        console.log('[SignIn] Existing sign-in status:', signIn.status);
-      }
-
       const result = await signIn.create({
         identifier: emailAddress,
         password,
       });
-      console.log('[SignIn] Result status:', result.status);
-      console.log('[SignIn] Result sessionId:', result.createdSessionId);
-      console.log('[SignIn] supportedSecondFactors:', result.supportedSecondFactors);
 
       if (result.status === 'complete' && result.createdSessionId) {
-        console.log('[SignIn] Sign in complete! Setting active session...');
         await setActive({ session: result.createdSessionId });
-        console.log('[SignIn] setActive completed! useEffect will handle redirect...');
-        // useEffectでisSignedInの変更を検知してリダイレクトする
       } else if (result.status === 'needs_second_factor') {
-        // メール認証が要求されている場合、自動で送信
-        console.log('[SignIn] Email verification required, attempting...');
         const secondFactor = result.supportedSecondFactors?.find(
           (f: any) => f.strategy === 'email_code'
         );
@@ -57,47 +42,69 @@ export default function SignInScreen() {
           await signIn.prepareSecondFactor({
             strategy: 'email_code',
           });
-          alert('認証コードをメールに送信しました。メールを確認してください。');
-          // TODO: コード入力UIを表示
+          toastHelpers.auth.info(
+            '認証コードをメールに送信しました 📧',
+            'メールを確認して、コードを入力してください'
+          );
         }
       } else {
-        // その他の認証ステップが必要
-        console.log('[SignIn] Additional steps needed. Status:', result.status);
-        console.log('[SignIn] First factor:', result.firstFactorVerification);
-        console.log('[SignIn] Second factor:', result.secondFactorVerification);
-        alert(`認証に追加のステップが必要です: ${result.status}`);
+        toastHelpers.auth.info(
+          '認証に追加のステップが必要です',
+          `ステータス: ${result.status}`
+        );
       }
     } catch (err: any) {
       console.error('[SignIn] Error:', JSON.stringify(err, null, 2));
-      alert('ログインに失敗しました。メールアドレスとパスワードを確認してください。');
+      const errorMessage = err?.errors?.[0]?.message || err?.message;
+      toastHelpers.auth.signInFailed(errorMessage);
     }
-  }, [isLoaded, emailAddress, password]);
+  }, [isLoaded, emailAddress, password, signIn, setActive]);
 
   const onGoogleSignInPress = React.useCallback(async () => {
     try {
-      const { createdSessionId, setActive: oAuthSetActive } = await startOAuthFlow();
+      const { createdSessionId, setActive: oAuthSetActive } = await startGoogleOAuth();
 
       if (createdSessionId) {
         await oAuthSetActive!({ session: createdSessionId });
-        console.log('[SignIn] Google OAuth complete!');
-        // useEffectでisSignedInの変更を検知してリダイレクトする
-      } else {
-        // ユーザーがOAuthフローをキャンセルした場合など
-        console.log('[SignIn] Google OAuth cancelled or incomplete');
       }
     } catch (err: any) {
       console.error('[SignIn] Google OAuth Error:', JSON.stringify(err, null, 2));
 
-      // エラーメッセージを日本語化
       if (err.code === 'oauth_access_denied') {
-        alert('Googleログインがキャンセルされました。');
+        toastHelpers.auth.authCancelled();
       } else if (err.code === 'session_exists') {
-        alert('既にログイン済みです。');
+        toastHelpers.auth.info(
+          '既にログイン済みです ✅',
+          '別のアカウントでログインしたい場合は、一度ログアウトしてください'
+        );
       } else {
-        alert('Googleログインに失敗しました。もう一度お試しください。');
+        toastHelpers.auth.oauthFailed('Google');
       }
     }
-  }, [startOAuthFlow]);
+  }, [startGoogleOAuth]);
+
+  const onAppleSignInPress = React.useCallback(async () => {
+    try {
+      const { createdSessionId, setActive: oAuthSetActive } = await startAppleOAuth();
+
+      if (createdSessionId) {
+        await oAuthSetActive!({ session: createdSessionId });
+      }
+    } catch (err: any) {
+      console.error('[SignIn] Apple OAuth Error:', JSON.stringify(err, null, 2));
+
+      if (err.code === 'oauth_access_denied') {
+        toastHelpers.auth.authCancelled();
+      } else if (err.code === 'session_exists') {
+        toastHelpers.auth.info(
+          '既にログイン済みです ✅',
+          '別のアカウントでログインしたい場合は、一度ログアウトしてください'
+        );
+      } else {
+        toastHelpers.auth.oauthFailed('Apple');
+      }
+    }
+  }, [startAppleOAuth]);
 
   return (
     <View className="flex-1 bg-white">
@@ -191,6 +198,18 @@ export default function SignInScreen() {
               <Ionicons name="logo-google" size={24} color="#4285F4" />
               <Text className="text-slate-900 font-bold text-base">Googleでログイン</Text>
             </TouchableOpacity>
+
+            {/* Appleログインボタン（iOSのみ） */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                onPress={onAppleSignInPress}
+                className="w-full bg-black rounded-2xl py-4 flex-row items-center justify-center gap-3"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-apple" size={24} color="#ffffff" />
+                <Text className="text-white font-bold text-base">Appleでログイン</Text>
+              </TouchableOpacity>
+            )}
 
             <View className="flex-row items-center justify-center gap-2 py-2">
               <Text className="text-slate-500 font-medium">アカウントをお持ちでないですか？</Text>

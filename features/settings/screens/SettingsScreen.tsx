@@ -1,57 +1,48 @@
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useMutation } from 'convex/react';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { api } from '../../../convex/_generated/api';
+import { api } from '@/convex/_generated/api';
+import { useSubscription } from '../../../lib/contexts/SubscriptionContext';
 
 interface SettingsScreenProps {
-  onNavigate: (screen: 'home' | 'profile' | 'settings' | 'profile-edit') => void;
+  onNavigate: (screen: 'home' | 'profile' | 'settings' | 'profile-edit' | 'subscription') => void;
   onSignOut: () => void;
 }
 
+const TIER_BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  free: { bg: 'bg-gray-100', text: 'text-gray-600' },
+  premium: { bg: 'bg-purple-100', text: 'text-purple-700' },
+};
+
 export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
-  const [isCreatingTestData, setIsCreatingTestData] = useState(false);
-  const [isClearingTestData, setIsClearingTestData] = useState(false);
+  const deleteAccount = useMutation(api.users.deleteAccount);
+  const { tier } = useSubscription();
+  const badgeColor = TIER_BADGE_COLORS[tier] ?? TIER_BADGE_COLORS.free;
 
-  const createTestFriends = useMutation(api.seedTestFriends.createTestFriends);
-  const clearTestFriends = useMutation(api.seedTestFriends.clearTestFriends);
-
-  const handleCreateTestFriends = async () => {
-    setIsCreatingTestData(true);
-    try {
-      const result = await createTestFriends();
-      Alert.alert('テストデータ作成', result.message);
-    } catch (error: any) {
-      Alert.alert('エラー', error.message || 'テストデータの作成に失敗しました');
-    } finally {
-      setIsCreatingTestData(false);
-    }
-  };
-
-  const handleClearTestFriends = async () => {
+  const handleDeleteAccount = () => {
     Alert.alert(
-      'テストデータ削除',
-      'テスト用の友達データをすべて削除しますか？',
+      'アカウントを削除',
+      'すべてのデータが完全に削除されます。この操作は取り消せません。本当に削除しますか？',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
-          text: '削除',
+          text: '削除する',
           style: 'destructive',
           onPress: async () => {
-            setIsClearingTestData(true);
             try {
-              const result = await clearTestFriends();
-              Alert.alert('削除完了', result.message);
-            } catch (error: any) {
-              Alert.alert('エラー', error.message || 'テストデータの削除に失敗しました');
-            } finally {
-              setIsClearingTestData(false);
+              await deleteAccount();
+              onSignOut();
+            } catch (err) {
+              console.error('Account deletion failed:', err);
+              Alert.alert('エラー', 'アカウントの削除に失敗しました。もう一度お試しください。');
             }
           },
         },
       ]
     );
   };
+
   return (
     <View className="flex-1 bg-background">
       {/* Header */}
@@ -74,7 +65,7 @@ export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
           <View>
             <Text className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wider">アカウント</Text>
             <View className="bg-card rounded-2xl overflow-hidden border border-border">
-              <TouchableOpacity className="flex-row items-center justify-between p-4 bg-white">
+              <TouchableOpacity className="flex-row items-center justify-between p-4 border-b border-border bg-white">
                 <View className="flex-row items-center gap-3">
                   <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
                     <Ionicons name="notifications" size={18} color="#2563eb" />
@@ -82,6 +73,25 @@ export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
                   <Text className="text-base font-medium text-foreground">通知設定</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onNavigate('subscription')}
+                className="flex-row items-center justify-between p-4 bg-white"
+              >
+                <View className="flex-row items-center gap-3">
+                  <View className="w-8 h-8 rounded-full bg-purple-100 items-center justify-center">
+                    <Ionicons name="diamond" size={18} color="#8b5cf6" />
+                  </View>
+                  <Text className="text-base font-medium text-foreground">サブスクリプション</Text>
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <View className={`px-2 py-0.5 rounded-full ${badgeColor.bg}`}>
+                    <Text className={`text-xs font-bold ${badgeColor.text}`}>
+                      {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -120,53 +130,6 @@ export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
             </View>
           </View>
 
-          {/* Developer Section */}
-          <View>
-            <Text className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wider">開発者向け</Text>
-            <View className="bg-card rounded-2xl overflow-hidden border border-border">
-              <TouchableOpacity
-                onPress={handleCreateTestFriends}
-                disabled={isCreatingTestData}
-                className="flex-row items-center justify-between p-4 border-b border-border bg-white"
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-8 h-8 rounded-full bg-green-100 items-center justify-center">
-                    <Ionicons name="people" size={18} color="#22c55e" />
-                  </View>
-                  <View>
-                    <Text className="text-base font-medium text-foreground">テスト友達を作成</Text>
-                    <Text className="text-xs text-muted-foreground">5人の友達と2件の申請を追加</Text>
-                  </View>
-                </View>
-                {isCreatingTestData ? (
-                  <ActivityIndicator size="small" color="#22c55e" />
-                ) : (
-                  <Ionicons name="add-circle" size={24} color="#22c55e" />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleClearTestFriends}
-                disabled={isClearingTestData}
-                className="flex-row items-center justify-between p-4 bg-white"
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center">
-                    <Ionicons name="trash" size={18} color="#f97316" />
-                  </View>
-                  <View>
-                    <Text className="text-base font-medium text-foreground">テストデータを削除</Text>
-                    <Text className="text-xs text-muted-foreground">作成したテスト友達を削除</Text>
-                  </View>
-                </View>
-                {isClearingTestData ? (
-                  <ActivityIndicator size="small" color="#f97316" />
-                ) : (
-                  <Ionicons name="remove-circle" size={24} color="#f97316" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Actions Section */}
           <View>
             <TouchableOpacity
@@ -175,6 +138,13 @@ export function SettingsScreen({ onNavigate, onSignOut }: SettingsScreenProps) {
             >
               <Ionicons name="log-out" size={20} color="#ef4444" style={{ marginRight: 8 }} />
               <Text className="text-base font-bold text-red-500">ログアウト</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              className="flex-row items-center justify-center p-4 rounded-2xl mt-3"
+            >
+              <Ionicons name="trash" size={18} color="#94a3b8" style={{ marginRight: 8 }} />
+              <Text className="text-sm font-medium text-slate-400">アカウントを削除</Text>
             </TouchableOpacity>
             <View className="items-center mt-6">
               <Text className="text-xs text-muted-foreground">バージョン 1.0.0</Text>

@@ -8,9 +8,15 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
+import type * as aiActions from "../aiActions.js";
+import type * as aiHelpers from "../aiHelpers.js";
+import type * as compatibilityEngine from "../compatibilityEngine.js";
 import type * as friendships from "../friendships.js";
+import type * as http from "../http.js";
 import type * as integratedAnalyses from "../integratedAnalyses.js";
 import type * as lastLover from "../lastLover.js";
+import type * as notifications from "../notifications.js";
 import type * as profileSharing from "../profileSharing.js";
 import type * as scoring from "../scoring.js";
 import type * as seedBig5Questions from "../seedBig5Questions.js";
@@ -26,6 +32,7 @@ import type * as seedStrengthsTest from "../seedStrengthsTest.js";
 import type * as seedTestFriends from "../seedTestFriends.js";
 import type * as seedTests from "../seedTests.js";
 import type * as shareLinks from "../shareLinks.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as testAnswers from "../testAnswers.js";
 import type * as testResults from "../testResults.js";
 import type * as tests from "../tests.js";
@@ -38,9 +45,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
+  aiActions: typeof aiActions;
+  aiHelpers: typeof aiHelpers;
+  compatibilityEngine: typeof compatibilityEngine;
   friendships: typeof friendships;
+  http: typeof http;
   integratedAnalyses: typeof integratedAnalyses;
   lastLover: typeof lastLover;
+  notifications: typeof notifications;
   profileSharing: typeof profileSharing;
   scoring: typeof scoring;
   seedBig5Questions: typeof seedBig5Questions;
@@ -56,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   seedTestFriends: typeof seedTestFriends;
   seedTests: typeof seedTests;
   shareLinks: typeof shareLinks;
+  subscriptions: typeof subscriptions;
   testAnswers: typeof testAnswers;
   testResults: typeof testResults;
   tests: typeof tests;

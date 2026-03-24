@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { generateAnalysis as generateAIAnalysis, type AnalysisInput } from "./ai";
 
 // ユーザーをトークンから取得するヘルパー
 async function getUserByToken(ctx: any, tokenIdentifier: string) {
@@ -8,6 +9,18 @@ async function getUserByToken(ctx: any, tokenIdentifier: string) {
     .query("users")
     .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", tokenIdentifier))
     .unique();
+}
+
+// ユーザーのサブスクリプション状態を確認
+async function getUserSubscription(ctx: any, userId: Id<"users">) {
+  const subscription = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("userId", userId).eq("status", "active")
+    )
+    .first();
+
+  return subscription;
 }
 
 // テーマ別の分析テンプレート
@@ -128,12 +141,16 @@ function selectFromTemplates(templates: string[], count: number): string[] {
   return shuffled.slice(0, count);
 }
 
-// 診断結果に基づいて分析をカスタマイズ
+// 診断結果に基づいて分析をカスタマイズ（テンプレートベースのフォールバック）
 function generateAnalysis(
   theme: string,
   selectedResults: Array<{
+    resultId: Id<"testResults">;
     testSlug: string;
     resultType: string;
+    testTitle?: string;
+    scores?: any;
+    analysis?: any;
   }>
 ): {
   title: string;
@@ -158,11 +175,12 @@ function generateAnalysis(
   };
 }
 
-// 新規分析を作成
+// 新規分析を作成（AI API統合版）
 export const create = mutation({
   args: {
     selectedResultIds: v.array(v.id("testResults")),
     theme: v.string(),
+    useAI: v.optional(v.boolean()), // AIを使用するか（デフォルト: 自動判定）
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -186,10 +204,13 @@ export const create = mutation({
     }
 
     // 選択された結果を取得
-    const selectedResults: Array<{
+    const selectedResultsWithDetails: Array<{
       resultId: Id<"testResults">;
       testSlug: string;
       resultType: string;
+      testTitle?: string;
+      scores?: any;
+      analysis?: any;
     }> = [];
 
     for (const resultId of args.selectedResultIds) {
@@ -203,20 +224,62 @@ export const create = mutation({
         throw new Error("テスト情報が見つかりません");
       }
 
-      selectedResults.push({
+      selectedResultsWithDetails.push({
         resultId,
         testSlug: test.slug,
         resultType: result.resultType,
+        testTitle: test.title,
+        scores: result.scores,
+        analysis: result.analysis,
       });
     }
 
-    // 分析を生成
-    const analysis = generateAnalysis(args.theme, selectedResults);
+    // サブスクリプション状態を確認
+    const subscription = await getUserSubscription(ctx, user._id);
+    const hasPremium = subscription && subscription.planId !== "free";
+
+    // AI使用の判定
+    // - 明示的にuseAI=trueが指定された場合
+    // - useAIが未指定で、プレミアムユーザーの場合
+    const shouldUseAI = args.useAI ?? hasPremium;
+
+    let analysis;
+    if (shouldUseAI) {
+      // AI APIを使用して分析を生成（resultIdを除外）
+      const aiInput: AnalysisInput = {
+        theme: args.theme,
+        selectedResults: selectedResultsWithDetails.map((r) => ({
+          resultType: r.resultType,
+          testSlug: r.testSlug,
+          testTitle: r.testTitle,
+          scores: r.scores,
+          analysis: r.analysis,
+        })),
+      };
+
+      try {
+        analysis = await generateAIAnalysis(aiInput, true);
+      } catch (error) {
+        console.error("AI分析生成エラー:", error);
+        // エラー時はテンプレートにフォールバック
+        analysis = generateAnalysis(args.theme, selectedResultsWithDetails);
+      }
+    } else {
+      // テンプレートベースの分析（フォールバック）
+      analysis = generateAnalysis(args.theme, selectedResultsWithDetails);
+    }
+
+    // 保存用のデータを整形（resultIdのみを保存）
+    const selectedResultsForStorage = selectedResultsWithDetails.map((r) => ({
+      resultId: r.resultId,
+      testSlug: r.testSlug,
+      resultType: r.resultType,
+    }));
 
     // 保存
     const analysisId = await ctx.db.insert("integratedAnalyses", {
       userId: user._id,
-      selectedResults,
+      selectedResults: selectedResultsForStorage,
       theme: args.theme,
       analysis,
       createdAt: Date.now(),
@@ -316,6 +379,35 @@ export const remove = mutation({
     await ctx.db.delete(args.analysisId);
 
     return { success: true };
+  },
+});
+
+// AI分析が利用可能かチェック
+export const isAIAvailable = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { available: false, reason: "not_authenticated" };
+
+    const user = await getUserByToken(ctx, identity.tokenIdentifier);
+    if (!user) return { available: false, reason: "user_not_found" };
+
+    // 環境変数チェック
+    const hasApiKey = !!process.env.OPENROUTER_API_KEY;
+
+    if (!hasApiKey) {
+      return { available: false, reason: "no_api_key" };
+    }
+
+    // サブスクリプションチェック（AIはプレミアム機能）
+    const subscription = await getUserSubscription(ctx, user._id);
+    const hasPremium = subscription && subscription.planId !== "free";
+
+    return {
+      available: hasPremium,
+      reason: hasPremium ? "available" : "premium_required",
+      provider: "anthropic",
+    };
   },
 });
 

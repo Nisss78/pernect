@@ -9,6 +9,7 @@ import {
   Platform,
 } from "react-native";
 import { useMutation } from "convex/react";
+import { toastHelpers } from "@/lib/toast-helpers";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Ionicons } from "@expo/vector-icons";
@@ -60,7 +61,7 @@ export default function ShareSheet({
       });
       setShareUrl(result.webUrl);
     } catch (error) {
-      Alert.alert("エラー", "シェアリンクの作成に失敗しました");
+      toastHelpers.load.failed('シェアリンクの作成');
     } finally {
       setIsLoading(false);
     }
@@ -85,10 +86,10 @@ export default function ShareSheet({
         });
       } catch {
         // フォールバック: クリップボードにコピー
-        Alert.alert("シェア", message, [{ text: "OK" }]);
+        toastHelpers.common.success('シェア内容をコピーしました 📋', message);
       }
     } else {
-      Alert.alert("シェア", message, [{ text: "OK" }]);
+      toastHelpers.common.success('シェア内容をコピーしました 📋', message);
     }
   };
 
@@ -106,11 +107,12 @@ export default function ShareSheet({
           UTI: "public.png",
           dialogTitle: "結果画像をシェア",
         });
+        toastHelpers.common.success('画像をシェアしました 📸', '結果をシェアありがとうございます！');
       } else {
-        Alert.alert("エラー", "画像のシェアに失敗しました");
+        toastHelpers.common.error('画像のシェアに失敗しました', '別の方法をお試しください');
       }
     } catch (error) {
-      Alert.alert("エラー", "画像の作成に失敗しました");
+      toastHelpers.common.error('画像の作成に失敗しました', 'もう一度お試しください');
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +124,9 @@ export default function ShareSheet({
       await handleCreateLink();
     }
 
-    // React Native doesn't have Clipboard built-in, show alert instead
+    // React Native doesn't have Clipboard built-in, show toast instead
     const url = shareUrl || `https://pernect.app/share/${resultId}`;
-    Alert.alert("リンクをコピー", url, [{ text: "OK" }]);
+    toastHelpers.common.success('リンクをコピーしました 🔗', url);
   };
 
   return (

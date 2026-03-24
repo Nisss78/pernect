@@ -131,13 +131,21 @@ export const getFriendProfile = query({
       .order("desc")
       .take(10);
 
-    // 結果の概要を作成
-    const resultsOverview = testResults.map((result) => ({
-      _id: result._id,
-      testSlug: result.aiData?.testSlug,
-      resultType: result.resultType,
-      completedAt: result.completedAt,
-    }));
+    // フレンドが公開している診断のみフィルタ
+    const visibleSlugs = friend.friendVisibleDiagnostics ?? [];
+
+    // 結果の概要を作成（公開設定されている診断のみ）
+    const resultsOverview = testResults
+      .filter((result) => {
+        const slug = result.aiData?.testSlug;
+        return slug && visibleSlugs.includes(slug);
+      })
+      .map((result) => ({
+        _id: result._id,
+        testSlug: result.aiData?.testSlug,
+        resultType: result.resultType,
+        completedAt: result.completedAt,
+      }));
 
     return {
       ...baseProfile,

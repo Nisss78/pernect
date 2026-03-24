@@ -52,7 +52,8 @@ export function TestScreen({ testSlug, onBack, onComplete }: TestScreenProps) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-muted-foreground mt-4">読み込み中...</Text>
+        <Text className="text-muted-foreground mt-4">テストを準備しています... 💫</Text>
+        <Text className="text-muted-foreground text-xs mt-2">もう少しお待ちください</Text>
       </View>
     );
   }

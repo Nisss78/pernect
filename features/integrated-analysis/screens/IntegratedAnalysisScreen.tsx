@@ -18,12 +18,14 @@ interface IntegratedAnalysisScreenProps {
   onBack: () => void;
   onAnalysisComplete: (analysisId: Id<"integratedAnalyses">) => void;
   onViewAnalysis: (analysisId: Id<"integratedAnalyses">) => void;
+  onNavigateToPaywall?: () => void;
 }
 
 export function IntegratedAnalysisScreen({
   onBack,
   onAnalysisComplete,
   onViewAnalysis,
+  onNavigateToPaywall,
 }: IntegratedAnalysisScreenProps) {
   const {
     completedResults,
@@ -31,6 +33,7 @@ export function IntegratedAnalysisScreen({
     isLoading,
     isCreating,
     createAnalysis,
+    aiAvailability,
   } = useIntegratedAnalysis();
 
   // 選択状態
@@ -54,7 +57,9 @@ export function IntegratedAnalysisScreen({
     if (selectedResultIds.length === 0 || !selectedTheme) return;
 
     try {
-      const result = await createAnalysis(selectedResultIds, selectedTheme);
+      // AIが利用可能な場合はAIを使用
+      const useAI = aiAvailability?.available ?? false;
+      const result = await createAnalysis(selectedResultIds, selectedTheme, useAI);
       if (result?.analysisId) {
         onAnalysisComplete(result.analysisId);
       }
@@ -71,7 +76,8 @@ export function IntegratedAnalysisScreen({
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-muted-foreground mt-4">読み込み中...</Text>
+        <Text className="text-muted-foreground mt-4">統合分析を準備しています... 📊</Text>
+        <Text className="text-muted-foreground text-xs mt-1">もう少しお待ちください</Text>
       </View>
     );
   }
@@ -104,10 +110,17 @@ export function IntegratedAnalysisScreen({
             >
               <Ionicons name="analytics" size={24} color="white" />
             </LinearGradient>
-            <View>
-              <Text className="text-2xl font-bold text-foreground">統合分析</Text>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-2xl font-bold text-foreground">統合分析</Text>
+                {aiAvailability?.available && (
+                  <View className="bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 rounded-full">
+                    <Text className="text-white text-xs font-bold">AI</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-sm text-muted-foreground">
-                複数の診断結果を踏まえてAI分析
+                複数の診断結果を踏まえて分析
               </Text>
             </View>
           </View>
@@ -154,7 +167,7 @@ export function IntegratedAnalysisScreen({
                 <>
                   <ActivityIndicator size="small" color="white" />
                   <Text className="text-white font-bold text-base ml-2">
-                    分析中...
+                    {aiAvailability?.available ? "AI分析中..." : "分析中..."}
                   </Text>
                 </>
               ) : (
@@ -175,6 +188,31 @@ export function IntegratedAnalysisScreen({
                 ? "分析する診断を1つ以上選択してください"
                 : "分析テーマを選択してください"}
             </Text>
+          )}
+
+          {/* AI利用可能性ステータス */}
+          {canStartAnalysis && !isCreating && (
+            <View className="mt-3">
+              {aiAvailability?.available ? (
+                <View className="flex-row items-center justify-center gap-2 bg-purple-50 py-2 px-4 rounded-xl">
+                  <Ionicons name="sparkles" size={16} color="#8b5cf6" />
+                  <Text className="text-xs text-purple-700 font-medium">
+                    AIによる高度な分析が利用可能
+                  </Text>
+                </View>
+              ) : aiAvailability?.reason === "premium_required" ? (
+                <TouchableOpacity
+                  onPress={onNavigateToPaywall}
+                  className="flex-row items-center justify-center gap-2 bg-purple-50 py-2 px-4 rounded-xl border border-purple-200"
+                >
+                  <Ionicons name="lock-closed" size={16} color="#8b5cf6" />
+                  <Text className="text-xs text-purple-700 font-medium">
+                    プレミアムプランでAI分析を解放
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#8b5cf6" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           )}
 
           {/* 過去の分析履歴 */}

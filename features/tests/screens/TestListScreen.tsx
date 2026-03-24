@@ -22,7 +22,7 @@ const iconMap: Record<string, { component: any; name: string }> = {
 };
 
 interface TestListScreenProps {
-  onNavigate?: (screen: "home" | "profile" | "settings") => void;
+  onNavigate?: (screen: "home" | "profile" | "friends" | "settings") => void;
   onActionPress?: () => void;
   onStartTest?: (testSlug: string) => void;
 }
@@ -79,7 +79,7 @@ export function TestListScreen({
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-muted-foreground mt-4">読み込み中...</Text>
+        <Text className="text-muted-foreground mt-4">テスト一覧を読み込んでいます... 💫</Text>
       </View>
     );
   }

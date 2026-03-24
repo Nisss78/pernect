@@ -208,7 +208,61 @@ export const incrementAccessCount = mutation({
 });
 
 /**
- * シェアリンクを削除する
+ * シェアリンクを削除する（エイリアス）
+ */
+export const deleteShareLink = mutation({
+  args: {
+    shareId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("認証が必要です");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!user) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    const shareLink = await ctx.db
+      .query("shareLinks")
+      .withIndex("by_shareId", (q) => q.eq("shareId", args.shareId))
+      .first();
+
+    if (!shareLink) {
+      throw new Error("シェアリンクが見つかりません");
+    }
+
+    if (shareLink.userId !== user._id) {
+      throw new Error("このシェアリンクを削除する権限がありません");
+    }
+
+    // 関連する結果のshareSettingsをリセット
+    const result = await ctx.db.get(shareLink.resultId);
+    if (result) {
+      await ctx.db.patch(shareLink.resultId, {
+        shareSettings: {
+          isPublic: false,
+          shareId: undefined,
+        },
+      });
+    }
+
+    await ctx.db.delete(shareLink._id);
+
+    return { success: true };
+  },
+});
+
+/**
+ * シェアリンクを削除する（オリジナル）
  */
 export const deleteLink = mutation({
   args: {

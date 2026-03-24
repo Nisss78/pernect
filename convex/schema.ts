@@ -16,8 +16,16 @@ export default defineSchema({
     gender: v.optional(v.string()), // "male" | "female" | "other" | "prefer_not_to_say"
     bio: v.optional(v.string()), // 自己紹介
     occupation: v.optional(v.string()), // 職業
+    // プロフィール公開設定
+    profileVisibility: v.optional(v.string()), // "public" | "friends_only" | "private"
+    showEmail: v.optional(v.boolean()), // メールアドレスを公開するか
+    showTestResults: v.optional(v.boolean()), // 診断結果を公開するか
+    friendVisibleDiagnostics: v.optional(v.array(v.string())), // フレンドに公開する診断のslug一覧
     createdAt: v.optional(v.number()), // 作成日時
     updatedAt: v.optional(v.number()), // 更新日時
+    // オンボーディング
+    onboardingCompleted: v.optional(v.boolean()), // オンボーディング完了フラグ
+    referralSource: v.optional(v.string()), // アプリ発見経路
   })
     .index("by_token", ["tokenIdentifier"])
     .index("by_userId", ["userId"]),
@@ -273,6 +281,23 @@ export default defineSchema({
       ),
     }),
     usedAiApi: v.boolean(),
+    // AI深掘り分析（プレミアム機能）
+    deepAnalysis: v.optional(
+      v.object({
+        title: v.string(),
+        overview: v.string(), // 2人の関係性の深い読み解き
+        sections: v.array(
+          v.object({
+            category: v.string(), // "コミュニケーション", "価値観", etc.
+            insight: v.string(), // 深い洞察
+            advice: v.string(), // 具体的アドバイス
+          })
+        ),
+        hiddenDynamics: v.string(), // 表面に見えない関係のダイナミクス
+        growthPath: v.string(), // 2人が一緒に成長するためのロードマップ
+        generatedAt: v.number(),
+      })
+    ),
     createdAt: v.number(),
   })
     .index("by_user_pair", ["user1Id", "user2Id"])
@@ -306,4 +331,58 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_theme", ["userId", "theme"])
     .index("by_created", ["createdAt"]),
+
+  // 通知履歴テーブル
+  notifications: defineTable({
+    userId: v.id("users"), // 通知を受け取るユーザー
+    type: v.string(), // "friend_request" | "friend_accepted" | "analysis_complete" | "share_link"
+    title: v.string(), // 通知タイトル
+    message: v.string(), // 通知メッセージ
+    data: v.optional(v.any()), // 関連データ（friendshipId, analysisId, etc.）
+    isRead: v.boolean(), // 既読フラグ
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_unread", ["userId", "isRead"]),
+
+  // サブスクリプションプラン定義テーブル
+  subscriptionPlans: defineTable({
+    planId: v.string(), // "plus_monthly", "pro_yearly", etc.
+    name: v.string(), // "Plus", "Pro", "Max"
+    description: v.string(), // プランの説明
+    billingPeriod: v.string(), // "monthly" | "yearly"
+    price: v.number(), // 料金（日本円）
+    currency: v.string(), // "JPY"
+    features: v.array(v.string()), // ["機能1", "機能2", ...]
+    isActive: v.boolean(), // 有効フラグ
+    sortOrder: v.number(), // 表示順
+    revenuecatProductId: v.optional(v.string()), // RevenueCat product identifier
+    revenuecatEntitlementId: v.optional(v.string()), // 対応するentitlement
+    createdAt: v.optional(v.number()), // 作成日時
+  })
+    .index("by_planId", ["planId"])
+    .index("by_active", ["isActive"])
+    .index("by_period", ["billingPeriod"]),
+
+  // ユーザーサブスクリプションテーブル
+  subscriptions: defineTable({
+    userId: v.id("users"), // ユーザーID
+    planId: v.string(), // プランID (plus_monthly, pro_yearly etc.)
+    status: v.string(), // "active" | "cancelled" | "expired" | "billing_issue"
+    startDate: v.number(), // 開始日時
+    endDate: v.optional(v.number()), // 終了日時
+    cancelAtPeriodEnd: v.optional(v.boolean()), // 期間終了時にキャンセル
+    revenuecatAppUserId: v.optional(v.string()), // RevenueCat app_user_id
+    revenuecatProductId: v.optional(v.string()), // ストアのproduct_id
+    revenuecatEntitlementId: v.optional(v.string()), // entitlement識別子
+    currentPeriodStart: v.optional(v.number()), // 現在期間の開始
+    currentPeriodEnd: v.optional(v.number()), // 現在期間の終了
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_revenuecatAppUserId", ["revenuecatAppUserId"]),
 });

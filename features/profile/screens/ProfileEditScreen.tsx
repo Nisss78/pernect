@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { toastHelpers } from '@/lib/toast-helpers';
 import { api } from '../../../convex/_generated/api';
 import { useProfileEditData } from '../hooks/useProfileEditData';
 
@@ -156,7 +157,7 @@ export function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   const handleSave = async () => {
     if (!hasChanges) return;
     if (userIdError) {
-      Alert.alert('エラー', userIdError);
+      toastHelpers.common.error('入力エラー', userIdError);
       return;
     }
 
@@ -172,14 +173,14 @@ export function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
         occupation: occupation || undefined,
         image: image || undefined,
       });
-      Alert.alert('保存完了', 'プロフィールを更新しました', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toastHelpers.profile.updated();
+      setTimeout(() => onBack(), 500);
     } catch (error: any) {
       if (error.message?.includes('既に使用されています')) {
-        Alert.alert('エラー', 'このユーザーIDは既に使用されています');
+        toastHelpers.profile.updateFailed('ユーザーID');
+        toastHelpers.common.error('このユーザーIDは既に使用されています', '別のIDをお試しください');
       } else {
-        Alert.alert('エラー', 'プロフィールの更新に失敗しました');
+        toastHelpers.profile.updateFailed('プロフィール');
       }
     } finally {
       setIsSaving(false);
@@ -190,7 +191,7 @@ export function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('権限が必要です', '写真ライブラリへのアクセスを許可してください。');
+        toastHelpers.common.error('写真ライブラリへのアクセス許可が必要です', '設定 > プライバシー > 写真 から許可してください');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -211,7 +212,7 @@ export function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       }
     } catch (e) {
       console.error('pickImage error', e);
-      Alert.alert('エラー', '画像の選択に失敗しました');
+      toastHelpers.profile.imageUploadFailed();
     }
   };
 

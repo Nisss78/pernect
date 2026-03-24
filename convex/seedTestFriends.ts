@@ -1,5 +1,85 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
+
+// CLI用: npx convex run seedTestFriends:seedDemoFriends '{"userId":"user6227"}'
+export const seedDemoFriends = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) =>
+        q.eq("userId", args.userId)
+      )
+      .unique();
+
+    if (!currentUser) {
+      throw new Error("ユーザーが見つかりません");
+    }
+
+    const testUsers = [
+      { name: "田中太郎", userId: "tanaka_taro", mbti: "ENFP", bio: "プログラミングと音楽が好きです！", image: "https://i.pravatar.cc/300?img=3" },
+      { name: "佐藤花子", userId: "sato_hanako", mbti: "INTJ", bio: "読書とカフェ巡りが趣味です☕", image: "https://i.pravatar.cc/300?img=5" },
+      { name: "山田健一", userId: "yamada_ken", mbti: "ESTP", bio: "スポーツ全般大好き！特にサッカー⚽", image: "https://i.pravatar.cc/300?img=12" },
+      { name: "鈴木美咲", userId: "suzuki_misaki", mbti: "INFP", bio: "イラストを描いています🎨", image: "https://i.pravatar.cc/300?img=9" },
+      { name: "高橋翔", userId: "takahashi_sho", mbti: "ENTJ", bio: "起業家を目指しています📈", image: "https://i.pravatar.cc/300?img=11" },
+    ];
+
+    const createdUserIds = [];
+    for (const userData of testUsers) {
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_userId", (q) => q.eq("userId", userData.userId))
+        .unique();
+
+      let userId;
+      if (existing) {
+        userId = existing._id;
+        // 画像を更新
+        await ctx.db.patch(existing._id, { image: userData.image });
+      } else {
+        userId = await ctx.db.insert("users", {
+          tokenIdentifier: `test_${userData.userId}_${Date.now()}`,
+          name: userData.name,
+          userId: userData.userId,
+          mbti: userData.mbti,
+          bio: userData.bio,
+          image: userData.image,
+          createdAt: Date.now(),
+        });
+      }
+      createdUserIds.push(userId);
+    }
+
+    let friendshipsCreated = 0;
+    for (const friendId of createdUserIds) {
+      const existing1 = await ctx.db
+        .query("friendships")
+        .withIndex("by_pair", (q) =>
+          q.eq("requesterId", currentUser._id).eq("receiverId", friendId)
+        )
+        .first();
+      const existing2 = await ctx.db
+        .query("friendships")
+        .withIndex("by_pair", (q) =>
+          q.eq("requesterId", friendId).eq("receiverId", currentUser._id)
+        )
+        .first();
+
+      if (!existing1 && !existing2) {
+        await ctx.db.insert("friendships", {
+          requesterId: currentUser._id,
+          receiverId: friendId,
+          status: "accepted",
+          requestedAt: Date.now() - 86400000,
+          respondedAt: Date.now(),
+        });
+        friendshipsCreated++;
+      }
+    }
+
+    return { success: true, friendsCreated: friendshipsCreated };
+  },
+});
 
 // テスト用の仮ユーザーと友達関係を作成
 export const createTestFriends = mutation({

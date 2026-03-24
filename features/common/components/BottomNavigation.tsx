@@ -4,8 +4,8 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 interface BottomNavigationProps {
-  currentScreen: 'home' | 'profile';
-  onNavigate: (screen: 'home' | 'profile' | 'settings') => void;
+  currentScreen: 'home' | 'profile' | 'friends';
+  onNavigate: (screen: 'home' | 'profile' | 'friends') => void;
   onActionPress?: () => void;
 }
 
@@ -44,8 +44,9 @@ export function BottomNavigation({ currentScreen, onNavigate, onActionPress }: B
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* ナビゲーションアイテム（左右をハーフに分け、中央のFAB領域を確保。各アイテムは「プラスボタンと端」の中間に配置） */}
-      <View className="flex-row items-center justify-between pt-3 pb-8">
+      {/* ナビゲーションアイテム - 3つのタブ（ホーム・フレンズ・プロフィール） */}
+      <View className="flex-row items-center justify-around pt-3 pb-8">
+        {/* ホームタブ */}
         <View style={{ flex: 1, alignItems: 'center' }}>
           <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('home')}>
             <Ionicons
@@ -59,9 +60,21 @@ export function BottomNavigation({ currentScreen, onNavigate, onActionPress }: B
           </TouchableOpacity>
         </View>
 
-        {/* 中央のフローティングボタン(56px) + 余白のためのスペース */}
-        <View style={{ width: 96 }} />
+        {/* フレンズタブ - 中央（FABの下に配置） */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('friends')}>
+            <Ionicons
+              name="people"
+              size={24}
+              color={currentScreen === 'friends' ? '#8b5cf6' : '#64748b'}
+            />
+            <Text className={`text-xs ${currentScreen === 'friends' ? 'font-semibold text-[#8b5cf6]' : 'text-muted-foreground'}`}>
+              フレンズ
+            </Text>
+          </TouchableOpacity>
+        </View>
 
+        {/* プロフィールタブ */}
         <View style={{ flex: 1, alignItems: 'center' }}>
           <TouchableOpacity className="items-center gap-1" onPress={() => onNavigate('profile')}>
             <FontAwesome

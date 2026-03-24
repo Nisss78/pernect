@@ -6,12 +6,20 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://earnest-owl-448.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Z3JlYXQtYmx1ZWdpbGwtNzcuY2xlcmsuYWNjb3VudHMuZGV2JA"
+      }
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://earnest-owl-448.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Z3JlYXQtYmx1ZWdpbGwtNzcuY2xlcmsuYWNjb3VudHMuZGV2JA"
       }
     },
     "production": {
@@ -21,6 +29,10 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://earnest-owl-448.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Z3JlYXQtYmx1ZWdpbGwtNzcuY2xlcmsuYWNjb3VudHMuZGV2JA"
       }
     },
     "production-local": {
@@ -30,15 +42,17 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://earnest-owl-448.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Z3JlYXQtYmx1ZWdpbGwtNzcuY2xlcmsuYWNjb3VudHMuZGV2JA"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-apple-team-id"
+        "ascAppId": "6739976909"
       }
     }
   }

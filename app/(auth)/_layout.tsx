@@ -17,7 +17,6 @@ export default function AuthLayout() {
 
   // 認証済みの場合はホームにリダイレクト
   if (isSignedIn) {
-    console.log('[AuthLayout] User is signed in, redirecting to home...');
     return <Redirect href="/" />;
   }
 

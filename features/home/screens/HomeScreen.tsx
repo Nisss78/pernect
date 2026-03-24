@@ -1,16 +1,73 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { BottomNavigation } from '../../common/components/BottomNavigation';
+import { ActivityIndicator, Dimensions, ImageBackground, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useHomeData } from '../hooks/useHomeData';
+import { TestCardSkeleton, GridCardSkeleton } from '@/components/ui/Skeleton';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = screenWidth - 96; // 1枚を少し小さくして次のカードが見えるようにする
 
+// 診断タイプ別の背景画像マッピング（Unsplash フリー素材）
+const getBackgroundImage = (slug: string): string => {
+  const imageMap: Record<string, string> = {
+    // 性格診断系 - 脳・心理・抽象的
+    'mbti': 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=800&q=80',
+    'mbti-simple': 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=800&q=80',
+    'mbti-evidence': 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=800&q=80',
+    'big5': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
+
+    // エニアグラム - ジオメトリック・複雑なパターン
+    'enneagram': 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    'enneagram-simple': 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+
+    // キャリア・仕事系 - 道・ビジネス・成長
+    'career-type': 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80',
+    'career-anchors': 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80',
+
+    // 強み・才能 - 光・エネルギー
+    'strengths': 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80',
+    'via-strengths': 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=800&q=80',
+
+    // 感情・恋愛系 - ハート・温かみ
+    'eq': 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=800&q=80',
+    'attachment-style': 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+    'love-language': 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=800&q=80',
+    'last-lover': 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80',
+
+    // コミュニケーション - つながり・ネットワーク
+    'disc-communication': 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+
+    // 感受性・ストレス - 自然・禅・リラックス
+    'hsp': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80',
+    'stress-coping': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80',
+
+    // 学習・価値観 - 本・知識
+    'vark-learning': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=800&q=80',
+    'schwartz-values': 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80',
+
+    // マネー・グリット - 成功・目標
+    'money-script': 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=800&q=80',
+    'grit': 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80',
+  };
+
+  // 完全一致を探す
+  if (imageMap[slug]) return imageMap[slug];
+
+  // 部分一致で探す
+  for (const key of Object.keys(imageMap)) {
+    if (slug.includes(key) || key.includes(slug)) {
+      return imageMap[key];
+    }
+  }
+
+  // デフォルト画像（抽象的な背景）
+  return 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=800&q=80';
+};
+
 interface HomeScreenProps {
   onSignOut?: () => void;
-  onNavigate?: (screen: 'home' | 'profile' | 'settings' | 'test-list') => void;
+  onNavigate?: (screen: 'home' | 'profile' | 'friends' | 'settings' | 'test-list') => void;
   onActionPress?: () => void;
   onStartTest?: (testSlug: string) => void;
 }
@@ -60,7 +117,7 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
             <Text className="text-3xl font-bold text-[#8b5cf6]">
               pernect
             </Text>
-            <TouchableOpacity className="flex items-center justify-center w-11 h-11 rounded-2xl bg-secondary">
+            <TouchableOpacity className="flex items-center justify-center w-11 h-11 rounded-full bg-secondary">
               <Ionicons name="notifications" size={24} className="text-accent" color="#8b5cf6" />
             </TouchableOpacity>
           </View>
@@ -84,31 +141,36 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
                   <TouchableOpacity
                     key={p._id}
                     onPress={() => onStartTest?.(test.slug)}
-                    className="bg-card rounded-3xl p-4 border border-border/50 shadow-sm"
                     activeOpacity={0.8}
                   >
-                    <View className="flex-row items-center">
-                      <LinearGradient
-                        colors={[test.gradientStart, test.gradientEnd]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{ width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {getIcon(test, 24, 'white')}
-                      </LinearGradient>
-                      <View className="flex-1 ml-4">
-                        <Text className="text-foreground font-bold text-base mb-1" numberOfLines={1}>
-                          {test.title}
-                        </Text>
-                        <View className="h-2 bg-secondary rounded-full overflow-hidden">
-                          <View
-                            className="bg-[#8b5cf6] h-2 rounded-full"
-                            style={{ width: `${percent}%` }}
-                          />
+                    <ImageBackground
+                      source={{ uri: getBackgroundImage(test.slug) }}
+                      className="rounded-3xl overflow-hidden"
+                      imageStyle={{ opacity: 0.15 }}
+                    >
+                      <View className="flex-row items-center bg-card/80 rounded-3xl p-4 border border-border/50 shadow-sm">
+                        <LinearGradient
+                          colors={[test.gradientStart, test.gradientEnd]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {getIcon(test, 22, 'white')}
+                        </LinearGradient>
+                        <View className="flex-1 ml-4">
+                          <Text className="text-foreground font-bold text-base mb-1" numberOfLines={1}>
+                            {test.title}
+                          </Text>
+                          <View className="h-2 bg-secondary rounded-full overflow-hidden">
+                            <View
+                              className="bg-[#8b5cf6] h-2 rounded-full"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </View>
+                          <Text className="text-muted-foreground text-xs mt-1">{answered} / {total} ({percent}%)</Text>
                         </View>
-                        <Text className="text-muted-foreground text-xs mt-1">{answered} / {total} ({percent}%)</Text>
                       </View>
-                    </View>
+                    </ImageBackground>
                   </TouchableOpacity>
                 );
               })}
@@ -124,30 +186,35 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24 }}>
             <View className="flex-row gap-4 px-1">
               {popularTests === undefined ? (
-                <View className="w-full items-center py-6">
-                  <ActivityIndicator size="small" color="#8b5cf6" />
+                <View style={{ width: cardWidth }}>
+                  <TestCardSkeleton />
                 </View>
               ) : (
                 popularTests.map((test) => (
                   <TouchableOpacity
                     key={test._id}
-                    style={{ width: cardWidth, borderRadius: 28 }}
+                    style={{ width: cardWidth, borderRadius: 32 }}
                     className="shadow-sm overflow-hidden"
                     activeOpacity={0.85}
                     onPress={() => onStartTest?.(test.slug)}
                   >
-                    <LinearGradient
-                      colors={[test.gradientStart, test.gradientEnd]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{ borderRadius: 28, padding: 24 }}
+                    <ImageBackground
+                      source={{ uri: getBackgroundImage(test.slug) }}
+                      style={{ borderRadius: 32 }}
+                      imageStyle={{ borderRadius: 32, opacity: 0.35 }}
                     >
-                      <View className="flex-row items-center justify-between mb-6">
-                        <View
+                      <LinearGradient
+                        colors={[test.gradientStart, test.gradientEnd]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ borderRadius: 32, padding: 24 }}
+                      >
+                        <View className="flex-row items-center justify-between mb-6">
+                          <View
                           className="bg-white/20 items-center justify-center"
-                          style={{ width: 56, height: 56, borderRadius: 16 }}
+                          style={{ width: 52, height: 52, borderRadius: 26 }}
                         >
-                          {getIcon(test, 28, 'white')}
+                          {getIcon(test, 26, 'white')}
                         </View>
                         <View className="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md">
                           <Text className="text-xs font-bold text-white">人気 🔥</Text>
@@ -168,6 +235,7 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
                         </View>
                       </View>
                     </LinearGradient>
+                    </ImageBackground>
                   </TouchableOpacity>
                 ))
               )}
@@ -181,39 +249,48 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
           </View>
           <View className="flex-row flex-wrap justify-between">
             {recommendedTests === undefined ? (
-              <View className="w-full items-center py-6">
-                <ActivityIndicator size="small" color="#8b5cf6" />
-              </View>
+              <>
+                <GridCardSkeleton />
+                <GridCardSkeleton />
+              </>
             ) : (
               recommendedTests.map((test) => (
                 <TouchableOpacity
                   key={test._id}
-                  className="w-[48%] bg-card rounded-[24px] p-5 border border-border/40 shadow-sm mb-4"
-                  activeOpacity={0.8}
+                  className="w-[48%] bg-card rounded-3xl mb-3 border border-border/60 p-4"
+                  activeOpacity={0.7}
                   onPress={() => onStartTest?.(test.slug)}
                 >
-                  <View className="mb-4 self-start">
-                    <LinearGradient
-                      colors={[test.gradientStart, test.gradientEnd]}
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 16,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {getIcon(test, 24, 'white')}
-                    </LinearGradient>
-                  </View>
+                  <LinearGradient
+                    colors={[test.gradientStart, test.gradientEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 12,
+                    }}
+                  >
+                    {getIcon(test, 20, 'white')}
+                  </LinearGradient>
 
-                  <Text className="text-[15px] font-bold mb-2 text-foreground leading-snug min-h-[44px]" numberOfLines={2}>
+                  <Text className="text-[14px] font-bold text-foreground leading-snug mb-2" numberOfLines={2}>
                     {test.title}
                   </Text>
 
-                  <View className="flex-row items-center gap-1 mt-auto">
-                    <Ionicons name="time-outline" size={13} color="#94a3b8" />
-                    <Text className="text-muted-foreground text-xs font-medium">約{test.estimatedMinutes}分</Text>
+                  <View className="flex-row items-center gap-2">
+                    <View className="flex-row items-center gap-1">
+                      <Ionicons name="time-outline" size={11} color="#94a3b8" />
+                      <Text className="text-muted-foreground text-[11px]">{test.estimatedMinutes}分</Text>
+                    </View>
+                    <Text className="text-border text-[11px]">|</Text>
+                    <View className="flex-row items-center gap-1">
+                      <Ionicons name="help-circle-outline" size={11} color="#94a3b8" />
+                      <Text className="text-muted-foreground text-[11px]">{test.questionCount}問</Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               ))
@@ -241,19 +318,24 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
                   onPress={() => onStartTest?.(test.slug)}
                   activeOpacity={0.7}
                 >
-                  <View className="flex-row items-center bg-card rounded-[24px] p-4 border border-border/40 shadow-sm">
-                    <LinearGradient
-                      colors={[test.gradientStart, test.gradientEnd]}
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 20,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {getIcon(test, 28, 'white')}
-                    </LinearGradient>
+                  <ImageBackground
+                    source={{ uri: getBackgroundImage(test.slug) }}
+                    className="rounded-[28px] overflow-hidden"
+                    imageStyle={{ opacity: 0.15 }}
+                  >
+                    <View className="flex-row items-center bg-card/80 rounded-[28px] p-4 border border-border/40 shadow-sm">
+                      <LinearGradient
+                        colors={[test.gradientStart, test.gradientEnd]}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 30,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {getIcon(test, 26, 'white')}
+                      </LinearGradient>
 
                     <View className="flex-1 ml-4 py-1">
                       <View className="flex-row items-center justify-between mb-1.5">
@@ -281,19 +363,14 @@ export function HomeScreen({ onSignOut, onNavigate, onActionPress, onStartTest }
                         </View>
                       </View>
                     </View>
-                  </View>
+                    </View>
+                  </ImageBackground>
                 </TouchableOpacity>
               ))}
             </View>
           )}
         </View>
       </ScrollView>
-
-      <BottomNavigation
-        currentScreen="home"
-        onNavigate={(screen) => onNavigate?.(screen)}
-        onActionPress={onActionPress}
-      />
     </View>
   );
 }

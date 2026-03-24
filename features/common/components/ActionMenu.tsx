@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 const SHEET_HEIGHT = 480;
 const DRAG_THRESHOLD = 80;
@@ -15,12 +17,20 @@ const DRAG_THRESHOLD = 80;
 interface ActionMenuProps {
   visible: boolean;
   onClose: () => void;
-  onNavigate?: (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis') => void;
+  onNavigate?: (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis' | 'notifications' | 'notification-settings') => void;
 }
 
 export function ActionMenu({ visible, onClose, onNavigate }: ActionMenuProps) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // 未処理のフレンドリクエスト数を取得
+  const pendingRequests = useQuery(api.friendships.listPendingRequests, {});
+  const pendingCount = pendingRequests?.length || 0;
+
+  // 未読通知数を取得
+  const unreadNotifications = useQuery(api.notifications.listUnread, {});
+  const unreadNotificationCount = unreadNotifications?.length || 0;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -90,7 +100,7 @@ export function ActionMenu({ visible, onClose, onNavigate }: ActionMenuProps) {
     }
   }, [visible, openSheet, translateY, backdropOpacity]);
 
-  const handleNavigate = (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis') => {
+  const handleNavigate = (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis' | 'notifications' | 'notification-settings') => {
     closeSheet();
     setTimeout(() => {
       onNavigate?.(screen);
@@ -178,7 +188,14 @@ export function ActionMenu({ visible, onClose, onNavigate }: ActionMenuProps) {
                   <Ionicons name="people" size={24} color="white" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-lg font-bold text-white" numberOfLines={1}>友達と相性チェック</Text>
+                  <View className="flex-row items-center">
+                    <Text className="text-lg font-bold text-white" numberOfLines={1}>友達と相性チェック</Text>
+                    {pendingCount > 0 && (
+                      <View className="bg-red-500 rounded-full ml-2 px-2 py-0.5">
+                        <Text className="text-white text-xs font-bold">{pendingCount}</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text className="text-white/90 text-xs" numberOfLines={1}>
                     友達を招待して相性や恋愛診断を分析
                   </Text>
@@ -188,6 +205,40 @@ export function ActionMenu({ visible, onClose, onNavigate }: ActionMenuProps) {
               <View className="flex-row items-center gap-2">
                 <Ionicons name="heart" size={14} color="rgba(255,255,255,0.8)" />
                 <Text className="text-white/80 text-xs">50万組のマッチング</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Notifications Card */}
+          <TouchableOpacity onPress={() => handleNavigate('notifications')} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#f59e0b', '#f59e0b', '#f97316']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 20, padding: 16 }}
+            >
+              <View className="flex-row items-center gap-3 mb-3">
+                <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center">
+                  <Ionicons name="notifications" size={24} color="white" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center">
+                    <Text className="text-lg font-bold text-white" numberOfLines={1}>通知</Text>
+                    {unreadNotificationCount > 0 && (
+                      <View className="bg-red-500 rounded-full ml-2 px-2 py-0.5">
+                        <Text className="text-white text-xs font-bold">{unreadNotificationCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="text-white/90 text-xs" numberOfLines={1}>
+                    友達リクエストや分析完了のお知らせ
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="notifications" size={14} color="rgba(255,255,255,0.8)" />
+                <Text className="text-white/80 text-xs">リアルタイム通知</Text>
               </View>
             </LinearGradient>
           </TouchableOpacity>

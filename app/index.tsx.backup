@@ -13,6 +13,8 @@ import { FriendAnalysisScreen } from '../features/friends/screens/FriendAnalysis
 import { HomeScreen } from '../features/home/screens/HomeScreen';
 import { IntegratedAnalysisScreen } from '../features/integrated-analysis/screens/IntegratedAnalysisScreen';
 import { AnalysisResultScreen } from '../features/integrated-analysis/screens/AnalysisResultScreen';
+import { NotificationListScreen } from '../features/notifications/screens/NotificationListScreen';
+import { NotificationSettingsScreen } from '../features/notifications/screens/NotificationSettingsScreen';
 import { ProfileEditScreen } from '../features/profile/screens/ProfileEditScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
 import { SettingsScreen } from '../features/settings/screens/SettingsScreen';
@@ -22,7 +24,7 @@ import { TestScreen } from '../features/tests/screens/TestScreen';
 import { WelcomeScreen } from '../features/welcome/screens/WelcomeScreen';
 import { Id } from '../convex/_generated/dataModel';
 
-type Screen = 'home' | 'profile' | 'settings' | 'ai-chat' | 'friends-match' | 'friends-list' | 'friend-requests' | 'add-friend' | 'friend-profile' | 'friend-analysis' | 'integrated-analysis' | 'analysis-result' | 'profile-edit' | 'test-list' | 'test' | 'test-result';
+type Screen = 'home' | 'profile' | 'friends' | 'settings' | 'notifications' | 'notification-settings' | 'ai-chat' | 'friends-match' | 'friends-list' | 'friend-requests' | 'add-friend' | 'friend-profile' | 'friend-analysis' | 'integrated-analysis' | 'analysis-result' | 'profile-edit' | 'test-list' | 'test' | 'test-result';
 
 export default function IndexPage() {
   const { signOut, isSignedIn, isLoaded: isClerkLoaded } = useAuth();
@@ -65,8 +67,8 @@ export default function IndexPage() {
     );
   }
 
-  const handleNavigateFromMenu = (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis') => {
-    setCurrentScreen(screen);
+  const handleNavigateFromMenu = (screen: 'ai-chat' | 'friends-match' | 'integrated-analysis' | 'notifications' | 'notification-settings') => {
+    setCurrentScreen(screen as Screen);
   };
 
   // 統合分析用のハンドラー
@@ -135,6 +137,8 @@ export default function IndexPage() {
         return (
           <FriendsMatchScreen
             onBack={handleBackToMain}
+            onNavigate={(screen) => setCurrentScreen(screen as Screen)}
+            onActionPress={() => setIsActionMenuVisible(true)}
             onFriendsListPress={() => setCurrentScreen('friends-list')}
             onRequestsPress={() => setCurrentScreen('friend-requests')}
             onAddFriendPress={() => setCurrentScreen('add-friend')}
@@ -255,6 +259,18 @@ export default function IndexPage() {
             onSignOut={() => signOut()}
           />
         );
+      case 'notifications':
+        return (
+          <NotificationListScreen
+            onBack={() => setCurrentScreen('friends')}
+          />
+        );
+      case 'notification-settings':
+        return (
+          <NotificationSettingsScreen
+            onBack={() => setCurrentScreen('notifications')}
+          />
+        );
       case 'profile-edit':
         return (
           <ProfileEditScreen
@@ -278,13 +294,25 @@ export default function IndexPage() {
   return (
     <>
       <View className="flex-1">
-        {/* Keep Home and Profile mounted to cache data and UI state */}
+        {/* Keep Home, Profile, and Friends mounted to cache data and UI state */}
         <View style={{ flex: 1, display: currentScreen === 'home' ? 'flex' : 'none' }}>
           <HomeScreen
             onSignOut={() => signOut()}
             onNavigate={(screen) => setCurrentScreen(screen as Screen)}
             onActionPress={() => setIsActionMenuVisible(true)}
             onStartTest={handleStartTest}
+          />
+        </View>
+        <View style={{ flex: 1, display: currentScreen === 'friends' ? 'flex' : 'none' }}>
+          <FriendsMatchScreen
+            onBack={handleBackToMain}
+            onNavigate={(screen) => setCurrentScreen(screen as Screen)}
+            onActionPress={() => setIsActionMenuVisible(true)}
+            onFriendsListPress={() => setCurrentScreen('friends-list')}
+            onRequestsPress={() => setCurrentScreen('friend-requests')}
+            onAddFriendPress={() => setCurrentScreen('add-friend')}
+            onFriendPress={handleFriendPress}
+            onAnalysisPress={handleFriendAnalysisPress}
           />
         </View>
         <View style={{ flex: 1, display: currentScreen === 'profile' ? 'flex' : 'none' }}>
@@ -296,7 +324,7 @@ export default function IndexPage() {
         </View>
 
         {/* Other screens rendered on demand */}
-        {currentScreen !== 'home' && currentScreen !== 'profile' && renderOtherScreens()}
+        {currentScreen !== 'home' && currentScreen !== 'friends' && currentScreen !== 'profile' && renderOtherScreens()}
       </View>
 
       <ActionMenu
